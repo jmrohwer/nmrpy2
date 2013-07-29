@@ -642,9 +642,6 @@ class FID_array(object):
 		
 		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
 		"""
-		#from timeit import Timer
-		#T = Timer()
-		#t1 = T.timer()
 		data = self.data.real
 		peaks = self.peaks
 		ranges = self.ranges
@@ -678,12 +675,6 @@ class FID_array(object):
 			print 'fit # '+str(len(fits))+'/'+str(len(data))
 			self.fits = np.array(fits)
 			self.integrals = f_integrals_array(self.data,self.fits)
-
-		#t2 = T.timer()
-		#t_fit = str((t2-t1)/60)
-		#t_min = int(t_fit[:t_fit.index('.')])
-		#t_sec = int(float(t_fit[t_fit.index('.'):])*60)
-		#print 'fitting time: '+str(t_min)+':'+str(t_sec)
 
 
 	def generate_plot(self,index=0,txt=True,sw_left=0,x_label='ppm',filename=None):
@@ -733,8 +724,6 @@ class FID_array(object):
 		ax.plot(ppm,peakplots,'-',color=cl[0],linewidth=1)
 		ax.invert_xaxis()
 		ax.set_xlabel(x_label)
-#		ax.set_yticklabels(ax.get_yticks(),fontProperties)
-#		ax.set_xticklabels(ax.get_xticks(),fontProperties)
 		while ax.get_yticks()[0] < 0.0:	
 			ax.set_yticks(ax.get_yticks()[1:])
 			ax.set_yticklabels(ax.get_yticks())
@@ -843,11 +832,6 @@ class FID_array(object):
 		s_concs = self.s_concs
 		s_rates = self.s_rates
 		cl = cm.Paired(mgrid[0:1:np.complex(len(self.integrals_sum))])
-		#if index is not None:
-			#integrals_sum = self.integrals_sum[index]
-			#integral_names = np.array(self.integral_names)[index]
-			#s_concs = self.s_concs[index]
-			#s_rates = self.s_rates[index]
 			
 		fig = figure(figsize=(10,4))
 		ax1 = fig.add_subplot(121)
@@ -856,7 +840,6 @@ class FID_array(object):
 			ax1.plot(self.t,integrals_sum[i],'s',color=cl[i],label=integral_names[i])
 			ax1.plot(self.t,s_concs[i],'-',lw=2,color=cl[i])
 			ax2.plot(self.t,s_rates[i],'-',lw=2,color=cl[i],label=integral_names[i])
-#		ax2.hlines(y=0,xmin=0,xmax=ax2.get_xlim()[1])
 		ax1.grid()
 		ax2.grid()
 		ax2.set_xlim([self.t[0],self.t[-1]])#,ax2.get_xlim()[1]])
@@ -874,13 +857,10 @@ class FID_array(object):
 		for i in range(len(leg.legendHandles)):
 			leg.legendHandles[i].set_linewidth(2)
 
-#		ax1.legend(frameon=False,loc=0,ncol=2)
-#		ax2.legend(frameon=False,loc=0,ncol=2)
 		ax1.set_xlabel(x_label1)
 		ax1.set_ylabel(y_label1)
 		ax2.set_xlabel(x_label2)
 		ax2.set_ylabel(y_label2)
-#		fig.subplots_adjust(wspace=0.3)#bottom=0.15)
 
 		show()
 
@@ -1164,18 +1144,6 @@ class Baseliner:
 			VPRES_low = np.where((x-inc)<np.array(self.xs))[0]
 			VPRES = VPRES_low[np.where(np.array(self.xs)[VPRES_low]<(x+inc))[0]]
 			for i in VPRES:	self.xs.pop(i)
-#			self.xs.pop(np.where(np.array(self.xs)==x)[0])
-
-#			xlow = x-10
-#			xhigh = x+10
-#			xrng = np.arange(xlow,xhigh,dtype='int32')
-#			print xrng
-#			for i in xrng:	self.xs[i] = 0
-#			self.xs = list(collections.Counter(self.xs))
-#			VAL_PRES = np.where(np.array(self.xs)==x)[0]
-#			print VAL_PRES
-#			if  len(VAL_PRES) > 0:	#test for previous inclusion of current datum
-#				self.xs.pop(VAL_PRES)
 			self.ax.lines[1].set_data(np.array(self.xs),self.data[np.array(self.xs,dtype='int32')])
 		self.canvas.draw_idle()
 		return False
@@ -1183,8 +1151,6 @@ class Baseliner:
 class Phaser:
 	def __init__(self,data):#,index=0):#, data):
 		fig = figure()
-		#if len(data.shape) == 2: data = data[index]
-		#data = data/data.max()
 		self.data = data
 		self.datanew = data
 		self.phases = np.array([0.,0.],dtype='f')
@@ -1240,7 +1206,6 @@ class Phaser:
 			self.phases[1] = self.phases[1] + dy
 		self.datanew = ps(self.data,p0=self.phases[0],p1=self.phases[1])
 		self.ax.lines[0].set_data(np.array([np.arange(len(self.datanew)),self.datanew]))
-#		self.ax.plot(self.datanew,linewidth=0.5)
 		self.canvas.draw()#_idle()
 		print 'p0: '+str(self.phases[0])+'\t'+'p1: '+str(self.phases[1])
 		return False
@@ -1279,8 +1244,6 @@ class SpanSelector:
 		self.ax.text(0.05*self.ax.get_xlim()[1],0.9*self.ax.get_ylim()[1],'Peak picking')
 		cursor = Cursor(self.ax, useblit=True,color='k', linewidth=0.5 )
 		cursor.horizOn = False
-#		self.ax.set_yticklabels(self.ax.get_yticks(),fontProperties)
-#		self.ax.set_xticklabels(self.ax.get_xticks(),fontProperties)
 		show()
 
 	def press(self, event):
@@ -1295,7 +1258,6 @@ class SpanSelector:
 				self.pressv = event.xdata
 			if event.button == 1 and (x >= 0) and (x<=len(self.data)-1):
 				self.peaks.append(x)
-				#self.ax.plot([x],self.data[x],'o',color='#CC0000')
 				self.ax.plot([x,x],self.ax_lims,color='#CC0000',lw=0.5)
 				print round(x)
 				sys.stdout.flush()
@@ -1319,13 +1281,11 @@ class SpanSelector:
 		if span > self.minspan and spantest is False:
 			self.ranges.append([vmin,vmax])
 			self.ax.bar(left=vmin,height=sum(abs(self.ylims)),width=span,bottom=self.ylims[0],alpha=0.2,color='0.5',edgecolor='k')
-#		self.ax.set_ylim([self.ylims[0],1])
 		self.canvas.draw()
 		self.ranges.sort()
 		return False
 
 	def onmove(self, event):
-#		if self.pressv is None or self.buttonDown is False or event.inaxes is None: return
 		if self.pressv is None or self.buttonDown is False or event.inaxes is None: return
 			
 		self.rect.set_visible(self.visible)
