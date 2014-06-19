@@ -14,17 +14,6 @@ from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import LSQUnivariateSpline
 from matplotlib import patches
 
-rc('text', usetex=True)
-rc('text.latex', preamble = \
-    '\usepackage{amsmath},' \
-    '\usepackage{yfonts},' \
-    '\usepackage[T1]{fontenc},' \
-    '\usepackage[latin1]{inputenc},' \
-    '\usepackage{txfonts},' \
-    '\usepackage{lmodern},' \
-    '\usepackage{blindtext}' )
-rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'],'weight' : 'normal'}
 
 def fid_from_path(path=None):
         """ imports and creates a Varian (Agilent) FID and returns an FID_array instance. """
@@ -39,12 +28,25 @@ class FID_array(object):
                 """Instantiate the FID class."""
                 self._data = None 
                 self.data = data
-                self._procpar = procpar
+                self._procpar = None 
+                self.procpar = procpar 
                 self.filename = path 
                 self.figs = []
                 self.ax = []
                 self._f_extract_proc()
-                   
+                
+                #configure fonts   
+                rc('text', usetex=True)
+                rc('text.latex', preamble = \
+                    '\usepackage{amsmath},' \
+                    '\usepackage{yfonts},' \
+                    '\usepackage[T1]{fontenc},' \
+                    '\usepackage[latin1]{inputenc},' \
+                    '\usepackage{txfonts},' \
+                    '\usepackage{lmodern},' \
+                    '\usepackage{blindtext}' )
+                rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+                fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'],'weight' : 'normal'}
 
         @property
         def data(self):
@@ -59,6 +61,17 @@ class FID_array(object):
                 value = array([value])
             self._data = value
 
+        @property
+        def procpar(self):
+            return self._procpar
+        
+        @procpar.setter
+        def procpar(self, value):
+            if not value:
+                raise ValueError('Procpar cannot be empty.')
+            if type(value) != dict:
+                raise ValueError('Procpar must be a dictionary, not type %s.'%type(value).__name__)
+            self._procpar = value
 	
 	def _f_extract_proc(self):
 		"""Extract NMR parameters (using Varian denotations) and create a parameter dictionary 'params'."""
