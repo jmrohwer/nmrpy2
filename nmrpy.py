@@ -13,6 +13,26 @@ from matplotlib.collections import PolyCollection
 from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import LSQUnivariateSpline
 from matplotlib import patches
+import matplotlib.ticker as ticker 
+try:
+    import pywt
+except:
+    print 'module pywt is not installed, wavelet smoothing capabilities are disabled'
+
+
+#configure fonts   
+rc('text', usetex=True)
+rc('text.latex', preamble = \
+    '\usepackage{amsmath},' \
+    '\usepackage{yfonts},' \
+    '\usepackage[T1]{fontenc},' \
+    '\usepackage[latin1]{inputenc},' \
+    '\usepackage{txfonts},' \
+    '\usepackage{lmodern},' \
+    '\usepackage{blindtext}' )
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'],'weight' : 'normal'}
+
 
 
 def fid_from_path(path=None):
@@ -34,19 +54,8 @@ class FID_array(object):
                 self.figs = []
                 self.ax = []
                 self._f_extract_proc()
-                
-                #configure fonts   
-                rc('text', usetex=True)
-                rc('text.latex', preamble = \
-                    '\usepackage{amsmath},' \
-                    '\usepackage{yfonts},' \
-                    '\usepackage[T1]{fontenc},' \
-                    '\usepackage[latin1]{inputenc},' \
-                    '\usepackage{txfonts},' \
-                    '\usepackage{lmodern},' \
-                    '\usepackage{blindtext}' )
-                rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-                fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'],'weight' : 'normal'}
+                self._peaks = None
+                self.peaks = None 
 
         @property
         def data(self):
@@ -72,6 +81,17 @@ class FID_array(object):
             if type(value) != dict:
                 raise ValueError('Procpar must be a dictionary, not type %s.'%type(value).__name__)
             self._procpar = value
+
+        @property
+        def peaks(self):
+            return self._peaks
+
+        @peaks.setter
+        def peaks(self,value):
+            if type(value) == list:
+                value = array(value)
+            self._peaks = value
+
 	
 	def _f_extract_proc(self):
 		"""Extract NMR parameters (using Varian denotations) and create a parameter dictionary 'params'."""
@@ -82,7 +102,14 @@ class FID_array(object):
 		acqtime = (nt*rt).cumsum()/60. #convert to mins.
 		sw = round(float(self._procpar['procpar']['sw']['values'][0])/float(self._procpar['procpar']['reffrq']['values'][0]),2)
 		sw_hz = float(self._procpar['procpar']['sw']['values'][0])
-		self.params = dict(at=at,d1=d1,rt=rt,nt=nt,acqtime=acqtime,sw=sw,sw_hz=sw_hz)
+		self.params = dict(
+                    at=at,
+                    d1=d1,
+                    rt=rt,
+                    nt=nt,
+                    acqtime=acqtime,
+                    sw=sw,
+                    sw_hz=sw_hz)
 		self.t = acqtime[:len(self.data)]
 
 	def zf_2(self):
@@ -109,20 +136,16 @@ class FID_array(object):
 		if len(self.data.shape) == 2:
 			for i in self.data:
 				dz.append(i.tolist()+np.zeros(2**(1+np.floor(log(len(i))/log(2)))-len(i)).tolist())#_like(i).tolist())
-		if len(self.data.shape) == 1:
-			dz = self.data.tolist()+np.zeros(2**(1+np.floor(log(len(self.data))/log(2)))-len(self.data)).tolist()
 		self.data = np.array(dz)
 
 
 	def emhz(self,lb=10.0):
 		"""Apply exponential line-broadening.
 		
-		Keyword Arguments:
-		lb -- degree of line-broadening in Hz.
+                lb -- degree of line-broadening in Hz.
 		
 		"""
 		if len(self.data.shape) == 2: self.data = np.exp(-pi*np.arange(len(self.data[0]))*(lb/self.params['sw_hz']))*self.data
-		if len(self.data.shape) == 1: self.data = np.exp(-pi*np.arange(len(self.data))*(lb/self.params['sw_hz']))*self.data
 
 	def ft(self):
 		"""Fourier Transform the FID array.
@@ -136,70 +159,29 @@ class FID_array(object):
 		s = data.shape[-1]
 		self.data = np.append(data[...,int(s/2)::-1],data[...,s:int(s/2):-1],axis=-1)[...,::-1]
 
-	#def ps_gen(self,iterations=100,cut_off=None,cut_iter=None):	#genetic phasing
-##		self.data = self.data/self.data.max()
-		#import evph as evolve
-		#n		= 50
-		#pp 		= 0.1
-		#rate_cross	= 0.2
-		#rate_mut	= 0.8
-		##iterations	= 200
-		##cut_off		= 10
-		#par_init_lims = [[-720,720],[-720,720]]
-##		par_init_lims = [[-180.,180.],[-180.,180.]]
 		
-		#for i in range(self.data.shape[0]):
-##			data = self.data[i]/abs(self.data[i]).max()
-			#print 'FID'+': '+str(i)+'/'+str(self.data.shape[0]-1)
-			#if cut_off is not None: fit,fit_history = evolve.evolve_while(self.data[i],par_init_lims, n, pp, rate_cross, rate_mut, cut_off)
-			#if cut_iter is not None: fit,fit_history = evolve.evolve_while_changing(self.data[i],par_init_lims, n, pp, rate_cross, rate_mut, cut_iter)
-##			if cut_off is not None: fit,fit_history = evolve.evolve_while(data,par_init_lims, n, pp, rate_cross, rate_mut, cut_off)
-			#else:	fit,fit_history = evolve.evolve(self.data[i],par_init_lims, n, pp, rate_cross, rate_mut, iterations)
-			#self.data[i] = ps(self.data[i],fit[0],fit[1])
-			#if self.data[i].sum() < 0:	self.data[i] = -self.data[i]
-			#if abs(self.data[i].min()) > abs(self.data[i].max()):	self.data[i] = -self.data[i]
-
-	#def ps_gen_mp(self,iterations=100,cut_fit=None,cut_iter=20):	#genetic phasing
-		#import evph as evolve
-		#n		= 100
-		#pp 		= 0.1
-		#rate_cross	= 0.2
-		#rate_mut	= 0.8
-		#par_init_lims = [[0.,360.],[0.,360.]]
-		#data = self.data
-		#proc_pool = Pool()
-		#if cut_fit is not None:
-			#fit = proc_pool.map(evolve.evolve_while_unfit_mp,data)
-		#else:
-			#fit = proc_pool.map(evolve.evolve_while_changing_mp,data)
-	 	#proc_pool.close()
-		#proc_pool.join()
-		#for i in range(self.data.shape[0]):
-			#self.data[i] = ps(self.data[i],fit[i][0],fit[i][1])
-##			if self.data[i].sum() < 0:	self.data[i] = -self.data[i]
-			
-	def f_savefids(self,filename=None):
+	def savefids(self,filename=None):
 		"""Save FID array to a binary file in NumPy '.npy' format."""
 		if len(self.data.shape) == 2:
 			s0,s1 = self.data.shape
 			data = self.data.real
 			new_array = array([s0,s1]+data.flatten().tolist())
-		if len(self.data.shape) == 1:
-			s0,s1 = self.data.shape[0],nan
-			data = self.data.real
-			new_array = array([s0,s1]+data.tolist())
-		if filename==None:	filename=self.filename[:-4]	
+		if filename==None:	
+                        filename=self.filename[:-4]	
 		np.save(filename,new_array)
 
-	def f_loadfids(self,filename=None):
+	def loadfids(self,filename=None):
 		"""Load FID array from binary file in NumPy '.npy' format."""
-		if filename==None:	filename=self.filename[:-3]+'npy'
+		if filename==None:	
+                    filename=self.filename[:-3]+'npy'
 		new_array = np.load(filename)
-		if isnan(new_array[1]):	self.data = new_array[2:]
-		else:	self.data = new_array[2:].reshape([int(new_array[0]),int(new_array[1])])
+		if isnan(new_array[1]):	
+                    self.data = new_array[2:]
+		else:	
+                    self.data = new_array[2:].reshape([int(new_array[0]),int(new_array[1])])
 		
 		
-	def f_wsmooth(self,level=20,thresh=2,filt='db8'):
+	def wsmooth(self,level=20,thresh=2,filt='db8'):
 		"""Perform wavelet smoothing on FID array.
 		
 		Keyword Arguments:
@@ -208,8 +190,9 @@ class FID_array(object):
 		filt -- filter function
 		
 		"""
-
-		import pywt
+                if 'pywt' not in sys.modules:
+                    print 'Wavelet smoothing has been disabled as the pywt module is not installed.'
+                    return
 		data = self.data
 		d = []
 		if len(self.data.shape) == 2:
@@ -229,7 +212,7 @@ class FID_array(object):
 	
 
 	
-	def plot_array_ppm(self,plotrange=None,index=None,sw_left=None,lw=0.5,amp=0.5,azm=-90,elv=20,bh=0.05,filled=False,plotratio=[1,1],labels=None,fs=10,x_label=r'$\deltaup$ ($^{31}$P), ppm',y_label='min',y_space=None,filename=None):
+	def plot_array_ppm(self,plotrange=None,index=None,sw_left=None,lw=0.5,amp=0.7,azm=-90,elv=45,bh=0.05,filled=False,plotratio=[1,1],labels=None,fs=10,x_label=r'$\deltaup$ ($^{31}$P), ppm',y_label='min',y_space=None,filename=None):
 		"""
 		Plot FID array in 3D using the Matplotlib mplot3d toolkit.
 		
@@ -268,13 +251,18 @@ class FID_array(object):
 
 		left,right = plotrange
 				
-		if index is None:	data_ft1 = self.data
-		else:	data_ft1 = self.data[index[0]:index[1]]
+		if index is None:	
+                    data_ft1 = self.data
+		else:	
+                    data_ft1 = self.data[index[0]:index[1]]
+    
 		acqtime = np.array([self.params['acqtime'][0]]*len(data_ft1)).cumsum()
-		acqtime = acqtime-acqtime[0]
-		sw = [sw_left,sw_left-self.params['sw']]
-		if left>sw[0]:  return 'Up-field limit of '+str(left)+' exceeds spectral width of '+str(sw[0])
-		if right<sw[1]: return 'Down-field limit of '+str(right)+' exceeds spectral width of '+str(sw[1])
+		acqtime -= acqtime[0]
+		sw = [sw_left, sw_left-self.params['sw']]
+		if left>sw[0]:  
+                    return 'Up-field limit of '+str(left)+' exceeds spectral width of '+str(sw[0])
+		if right<sw[1]: 
+                    return 'Down-field limit of '+str(right)+' exceeds spectral width of '+str(sw[1])
 		sw = sw[::-1]
 		ppm = mgrid[sw[0]:sw[1]:complex(0,data_ft1.shape[1])][::-1]
 		left = np.where(abs(left-ppm)==abs(left-ppm).min())[0][0]
@@ -284,7 +272,7 @@ class FID_array(object):
 		ppm = ppm[left:right].copy()
 		x = np.arange(0,data_ft.shape[1],1)
 		y = np.ones_like(x)
-		fig_all = figure(figsize=np.array(plotratio)*np.array([8,6]))
+		fig_all = figure(figsize=[18,6])
 		ax_all = Axes3D(fig_all,azim=azm,elev=elv)
 		if filled == False:
 			for i in range(data_ft.shape[0]):
@@ -314,7 +302,8 @@ class FID_array(object):
 
 		if ceil(plotrange[0]) == plotrange[0]:
 			nlbls = arange(ceil(plotrange[1]),ceil(plotrange[0])+1)[::-1]#[1:-1]
-		else:	nlbls = arange(ceil(plotrange[1]),ceil(plotrange[0]))[::-1]#[1:-1]
+		else:	    
+                        nlbls = arange(ceil(plotrange[1]),ceil(plotrange[0]))[::-1]#[1:-1]
 		lbl_ind = []
 		for i in nlbls:		
 			lbl_ind.append(np.where(abs(ppm-i) == abs(ppm-i).min())[0][0])
@@ -341,7 +330,6 @@ class FID_array(object):
 		#print nlbls,lbl_ind,right,left,plotrange#,ind_red
 		#sys.stdout.flush()
 
-		import matplotlib.ticker as ticker 
 		ax_all.w_xaxis.set_major_locator(ticker.FixedLocator(lbl_ind))
 		ax_all.w_yaxis.set_ticks_position('top')
 		ax_all.w_xaxis.set_ticklabels(nlbls)
@@ -375,7 +363,7 @@ class FID_array(object):
 		if filename is not None: fig_all.savefig(filename,format='pdf')
 		self.figs.append(fig_all)
 		self.ax.append(ax_all)
-		#	show()
+		show()
 
 	def plot_fid(self,index=0,sw_left=0,lw=0.7,x_label='ppm',y_label=None,filename=None):
 		"""Plot an FID.
@@ -388,7 +376,7 @@ class FID_array(object):
 		y_label -- y-axis label
 		filename -- save file to filename (default 'None' will not save)
 		"""
-		fig = figure()
+		fig = figure(figsize=[15,6])
 		ax1 = fig.add_subplot(111)
 		if len(self.data.shape) == 2:
 			ppm = mgrid[sw_left-self.params['sw']:sw_left:complex(len(self.data[0]))]
@@ -402,6 +390,7 @@ class FID_array(object):
 		ax1.set_xlabel(x_label)
 		if y_label is not None:	ax1.set_ylabel(y_label)
 		if filename is not None: fig.savefig(filename,format='pdf')
+                show()
 
 	def phasespace(self,index=0,inc=50):
 		"""Evaluate total integral area of specified FID over phase range of p0: [-180,180] and p1: [-180,180] in degrees. Used for deriving rough phasing parameters for spectra that are difficult to phase.
@@ -446,6 +435,8 @@ class FID_array(object):
 		ax.set_ylim([-.5,ftick+0.5])
 		ax.set_xlim([-.5,ftick+0.5])
 		ax.set_title('phasespace for FID '+str(self.ph_space['index']))
+                show()
+
 	
 	def phase(self,index=0,universal=False,norm=True):
 		"""Instantiate a widget for manual phasing of specified FID.
@@ -488,8 +479,10 @@ class FID_array(object):
 			dph = ps(data,p0=self.phases[0],p1=self.phases[1])
 		
 		
-		if norm:		self.data = np.array(dph)
-		else:		self.data = np.array(dph)*dmax
+		if norm:		
+                    self.data = np.array(dph)
+		else:		
+                    self.data = np.array(dph)*dmax
 		
 
 	def phase_neg(self,thresh=0.0):
@@ -549,7 +542,7 @@ class FID_array(object):
 				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
 				sys.stdout.flush()
 				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
-	#			if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
+				#if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
 		if len(data.shape) == 1:
 			p0 = [0,0]
 			phase = leastsq(err_ps,p0,args=(data))[0]
@@ -585,7 +578,7 @@ class FID_array(object):
 				data_ph[i] = ps(data[i],phase[0],phase[1])
 				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
 				sys.stdout.flush()
-	#			if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
+				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
 				if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
 		if len(data.shape) == 1:
 			p0 = [0,0]
@@ -597,7 +590,7 @@ class FID_array(object):
 			if data_ph.mean() < 0:	data_ph = -data_ph	
 		self.data = data_ph.real
 
-	def bl_select(self,index=0):
+	def baseline_correct(self,index=0, deg=2):
 		"""Instantiate a widget to select points for baseline correction which are stored in self.bl_points.
 		
 		Keyword arguments:
@@ -611,8 +604,9 @@ class FID_array(object):
 			data = self.data
 		self.baseliner = Baseliner(data)
 		self.bl_points = np.array(self.baseliner.xs,dtype='int32')
+                self.bl_fit(deg=deg)
 
-	def bl_fit(self,deg):
+	def bl_fit(self,deg=2):
 		"""Perform baseline correction by fitting specified baseline points (stored in self.bl_points) with polynomials of specified degree (stored in self.bl_polys) and subtract these polynomials from the respective FIDs.
 		
 		Keyword arguments:
@@ -635,13 +629,6 @@ class FID_array(object):
 				yp = sp.polyval(p, x)
 				self.bl_polys.append(yp)
 				d.append(i-yp)
-		if len(self.data.shape) == 1: 
-				ym = np.ma.masked_array(data,m)
-				xm = np.ma.masked_array(x,m)
-				p = np.ma.polyfit(xm,ym,deg)
-				yp = sp.polyval(p, x)
-				self.bl_polys = yp
-				d = data-yp
 		self.data = np.array(d)
 
 	def peakpicker(self,index=0):
@@ -711,7 +698,7 @@ class FID_array(object):
 			self.integrals = f_integrals_array(self.data,self.fits)
 
 
-	def generate_plot(self,index=0,txt=True,sw_left=0,x_label='ppm',filename=None):
+	def plot_deconv(self,index=0,txt=True,sw_left=0,x_label='ppm',filename=None):
 		"""Generate a plot of data with fitted peaks.
 		
 		Keyword arguments:
@@ -742,7 +729,7 @@ class FID_array(object):
 					pkr.append(np.array(j-peak).sum())
 			return np.where(np.array(pkr)==0.)[0][0]
 		cl = ['#336699','#999966','#990000']
-		fig = figure()
+		fig = figure(figsize=[15,6])
 		ax = fig.add_subplot(111)
 		x = np.arange(len(data))
 		peakplots = 0
@@ -1119,9 +1106,9 @@ from matplotlib.lines import Line2D
 from matplotlib.transforms import blended_transform_factory
 from matplotlib.widgets import Cursor
 
-class Baseliner:
+class Baseliner(object):
 	def __init__(self, data):
-		fig = figure()
+		fig = figure(figsize=[15,6])
 		self.data = data
 		self.x = np.array([])
 		self.ax = fig.add_subplot(111)
@@ -1138,7 +1125,7 @@ class Baseliner:
 		cursor = Cursor(self.ax, useblit=True,color='k', linewidth=0.5 )
 		cursor.horizOn = False
 		self.ax.set_xlim([0,len(self.data)])
-		self.ax.text(0.05*self.ax.get_xlim()[1],0.9*self.ax.get_ylim()[1],'Baseline correction')
+		self.ax.text(0.05*self.ax.get_xlim()[1],0.9*self.ax.get_ylim()[1],'Baseline correction\nLeft - select points')
 		self.ax.set_yticklabels(self.ax.get_yticks(),fontProperties)
 		self.ax.set_xticklabels(self.ax.get_xticks(),fontProperties)
 		show()
@@ -1155,9 +1142,6 @@ class Baseliner:
 			if event.inaxes is not None and (x>=0) and (x<=len(self.data)-1) and event.button==1:
 				if 1*(np.array(self.xs)[np.array(self.xs)==x]).sum() == 0:	#test for previous inclusion of current datum
 					self.xs.append(int(x))
-#			if event.inaxes is not None and event.button==3:
-#				self.buttonDown = True
-#				self.xs.pop(-2)
 			self.ax.lines[1].set_data(np.array(self.xs),self.data[np.array(self.xs,dtype='int32')])
 			self.canvas.draw_idle()				
 				
@@ -1182,9 +1166,9 @@ class Baseliner:
 		self.canvas.draw_idle()
 		return False
 
-class Phaser:
+class Phaser(object):
 	def __init__(self,data):#,index=0):#, data):
-		fig = figure()
+		fig = figure(figsize=[15,6])
 		self.data = data
 		self.datanew = data
 		self.phases = np.array([0.,0.],dtype='f')
@@ -1203,7 +1187,7 @@ class Phaser:
 		self.ranges = []
 		self.ax.set_ylim([-0.5,1.2])
 		self.ax.set_xlim([0,len(self.data)])
-		self.ax.text(0.05*self.ax.get_xlim()[1],0.9*self.ax.get_ylim()[1],'Phasing')
+		self.ax.text(0.05*self.ax.get_xlim()[1],0.8*self.ax.get_ylim()[1],'phasing\nleft - zero-order\nright - first order')
 		self.ylims = [self.ax.get_ylim()[0],self.ax.get_ylim()[1]+abs(self.ax.get_ylim()[0])]
 		cursor = Cursor(self.ax, useblit=True,color='k', linewidth=0.5 )
 		cursor.horizOn = False
@@ -1246,7 +1230,7 @@ class Phaser:
 
 class SpanSelector:
 	def __init__(self, data):
-		fig = figure()
+		fig = figure(figsize=[15,6])
 		self.data = data#/data.max()
 		self.ax = fig.add_subplot(111)
 		self.ax.plot(self.data,color='#3D3D99',linewidth=0.5)
@@ -1275,7 +1259,7 @@ class SpanSelector:
 		self.ax.set_ylim([self.ax.get_ylim()[0],self.data.max()*1.1])
 		self.ax_lims = self.ax.get_ylim()
 		self.ax.set_xlim([0,len(self.data)])
-		self.ax.text(0.05*self.ax.get_xlim()[1],0.9*self.ax.get_ylim()[1],'Peak picking')
+		self.ax.text(0.05*self.ax.get_xlim()[1],0.8*self.ax.get_ylim()[1],'Peak picking\nleft - select peak\ndrag right - select range')
 		cursor = Cursor(self.ax, useblit=True,color='k', linewidth=0.5 )
 		cursor.horizOn = False
 		show()
