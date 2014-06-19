@@ -1,4 +1,5 @@
 import sys
+import nmrglue as ng
 from pylab import *
 import numpy as np
 import scipy as sp
@@ -25,29 +26,49 @@ rc('text.latex', preamble = \
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'],'weight' : 'normal'}
 
-def f_fid(data,procpar,filename=None):
-	fid =  FID_array(data,procpar,filename)
-	fid.f_extract_proc()
-	return fid
+def fid_from_path(path=None):
+        """ imports and creates a Varian (Agilent) FID and returns an FID_array instance. """
+        if path:
+            procpar, data = ng.varian.read(path)
+            fid = FID_array(data=data, procpar=procpar, path=path)
+            return fid
+
 
 class FID_array(object):
-	def __init__(self, data,procpar=None,filename=None):
-		"""Instantiate the FID class."""
-		self.data = data#/data.max()
-		self.procpar = procpar
-		self.filename = filename
-		self.figs = []
-		self.ax = []
+	def __init__(self, data=None, procpar=None, path=None):
+                """Instantiate the FID class."""
+                self._data = None 
+                self.data = data
+                self._procpar = procpar
+                self.filename = path 
+                self.figs = []
+                self.ax = []
+                self._f_extract_proc()
+                   
+
+        @property
+        def data(self):
+            return self._data
+
+        @data.setter
+        def data(self, value):
+            value = array(value)
+            if len(value) <= 1:
+                raise ValueError('FID data must be an iterable: %s'%str(value))
+            if len(value.shape) == 1:
+                value = array([value])
+            self._data = value
+
 	
-	def f_extract_proc(self):
+	def _f_extract_proc(self):
 		"""Extract NMR parameters (using Varian denotations) and create a parameter dictionary 'params'."""
-		at = float(self.procpar['procpar']['at']['values'][0])
-		d1 = float(self.procpar['procpar']['d1']['values'][0])
+		at = float(self._procpar['procpar']['at']['values'][0])
+		d1 = float(self._procpar['procpar']['d1']['values'][0])
 		rt = at+d1
-		nt = np.array([self.procpar['procpar']['nt']['values']],dtype=float)
-		acqtime = (nt*rt).cumsum()/60.
-		sw = round(float(self.procpar['procpar']['sw']['values'][0])/float(self.procpar['procpar']['reffrq']['values'][0]),2)
-		sw_hz = float(self.procpar['procpar']['sw']['values'][0])
+		nt = np.array([self._procpar['procpar']['nt']['values']],dtype=float)
+		acqtime = (nt*rt).cumsum()/60. #convert to mins.
+		sw = round(float(self._procpar['procpar']['sw']['values'][0])/float(self._procpar['procpar']['reffrq']['values'][0]),2)
+		sw_hz = float(self._procpar['procpar']['sw']['values'][0])
 		self.params = dict(at=at,d1=d1,rt=rt,nt=nt,acqtime=acqtime,sw=sw,sw_hz=sw_hz)
 		self.t = acqtime[:len(self.data)]
 
@@ -219,9 +240,8 @@ class FID_array(object):
 		filename -- save file to filename (default 'None' will not save)
 		
 		"""
-		if len(self.data.shape) == 1:
-			print 'Error: 1D data not suitable for 3D plotting.'
-			sys.stdout.flush()
+		if len(self.data) == 1:
+			print 'Error: 1D FID not suitable for 3D plotting.'
 			return
 		
 		if sw_left is None:
@@ -478,7 +498,7 @@ class FID_array(object):
 		if len(data.shape) == 2:
 			for i in range(data.shape[0]):
 				p0 = [0,0]
-				phase = leastsq(err_ps,p0,args=(data[i]))[0]
+				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
 				self.phases.append(phase)
 				data_ph[i] = ps(data[i],phase[0],phase[1])
 				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
@@ -510,7 +530,7 @@ class FID_array(object):
 		if len(data.shape) == 2:
 			for i in range(data.shape[0]):
 				p0 = [0,0]
-				phase = leastsq(err_ps,p0,args=(data[i]))[0]
+				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
 				self.phases.append(phase)
 				data_ph[i] = ps(data[i],phase[0],phase[1])
 				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
@@ -542,11 +562,12 @@ class FID_array(object):
 		self.phases = []
 		def err_ps(p0,data):
 			err = ps(data,p0[0],p0[1],inv=False).real
-			return np.array([abs(err).sum(),abs(err[err<thresh]).sum()])
+                        err = array(2*[abs(err).sum() + abs(err[err<thresh]).sum()])
+			return err #np.array([abs(err).sum(),abs(err[err<thresh]).sum()])
 		if len(data.shape) == 2:
 			for i in range(data.shape[0]):
 				p0 = [0,0]
-				phase = leastsq(err_ps,p0,args=(data[i]))[0]
+				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
 				self.phases.append(phase)
 				data_ph[i] = ps(data[i],phase[0],phase[1])
 				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
