@@ -1,18 +1,17 @@
 import sys
+import csv
 import nmrglue as ng
-from pylab import *
 import numpy as np
 import scipy as sp
 from scipy.optimize import leastsq
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import rc
-from multiprocessing import cpu_count, Pool
-import csv
-import collections
-from matplotlib.collections import PolyCollection
 from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import LSQUnivariateSpline
-from matplotlib import patches
+from multiprocessing import cpu_count, Pool
+from collections import Counter
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.collections import PolyCollection
+from matplotlib import patches, rc
+from matplotlib.pylab import show, get_current_fig_manager, figure, cm, text
 import matplotlib.ticker as ticker 
 try:
     import pywt
@@ -63,11 +62,11 @@ class FID_array(object):
 
         @data.setter
         def data(self, value):
-            value = array(value)
+            value = np.array(value)
             if len(value) <= 1:
                 raise ValueError('FID data must be an iterable: %s'%str(value))
             if len(value.shape) == 1:
-                value = array([value])
+                value = np.array([value])
             self._data = value
 
         @property
@@ -89,7 +88,7 @@ class FID_array(object):
         @peaks.setter
         def peaks(self,value):
             if type(value) == list:
-                value = array(value)
+                value = np.array(value)
             self._peaks = value
 
 	
@@ -122,8 +121,6 @@ class FID_array(object):
 		if len(self.data.shape) == 2:
 			for i in self.data:
 				dz.append(i.tolist()+np.zeros_like(i).tolist())
-		if len(self.data.shape) == 1:
-			dz = self.data.tolist()+np.zeros_like(self.data).tolist()
 		self.data = np.array(dz)
 
 	def zf(self):
@@ -135,7 +132,7 @@ class FID_array(object):
 		dz = []
 		if len(self.data.shape) == 2:
 			for i in self.data:
-				dz.append(i.tolist()+np.zeros(2**(1+np.floor(log(len(i))/log(2)))-len(i)).tolist())#_like(i).tolist())
+				dz.append(i.tolist()+np.zeros(2**(1+np.floor(np.log(len(i))/np.log(2)))-len(i)).tolist())#_like(i).tolist())
 		self.data = np.array(dz)
 
 
@@ -145,7 +142,7 @@ class FID_array(object):
                 lb -- degree of line-broadening in Hz.
 		
 		"""
-		if len(self.data.shape) == 2: self.data = np.exp(-pi*np.arange(len(self.data[0]))*(lb/self.params['sw_hz']))*self.data
+		if len(self.data.shape) == 2: self.data = np.exp(-np.pi*np.arange(len(self.data[0]))*(lb/self.params['sw_hz']))*self.data
 
 	def ft(self):
 		"""Fourier Transform the FID array.
@@ -165,7 +162,7 @@ class FID_array(object):
 		if len(self.data.shape) == 2:
 			s0,s1 = self.data.shape
 			data = self.data.real
-			new_array = array([s0,s1]+data.flatten().tolist())
+			new_array = np.array([s0,s1]+data.flatten().tolist())
 		if filename==None:	
                         filename=self.filename[:-4]	
 		np.save(filename,new_array)
@@ -175,7 +172,7 @@ class FID_array(object):
 		if filename==None:	
                     filename=self.filename[:-3]+'npy'
 		new_array = np.load(filename)
-		if isnan(new_array[1]):	
+		if np.isnan(new_array[1]):	
                     self.data = new_array[2:]
 		else:	
                     self.data = new_array[2:].reshape([int(new_array[0]),int(new_array[1])])
@@ -202,12 +199,6 @@ class FID_array(object):
 					y[-(t+1)] = y[-(t+1)]*0
 				ys = pywt.waverec(y,'db8')
 				d.append(ys)
-		if len(self.data.shape) == 1:
-			y = pywt.wavedec(data,wavelet=filt,level=level)
-			for t in range(thresh):
-				y[-(t+1)] = y[-(t+1)]*0
-			ys = pywt.waverec(y,'db8')
-			d = ys
 		self.data = np.array(d)
 	
 
@@ -264,7 +255,7 @@ class FID_array(object):
 		if right<sw[1]: 
                     return 'Down-field limit of '+str(right)+' exceeds spectral width of '+str(sw[1])
 		sw = sw[::-1]
-		ppm = mgrid[sw[0]:sw[1]:complex(0,data_ft1.shape[1])][::-1]
+		ppm = np.mgrid[sw[0]:sw[1]:complex(0,data_ft1.shape[1])][::-1]
 		left = np.where(abs(left-ppm)==abs(left-ppm).min())[0][0]
 		right= np.where(abs(right-ppm)==abs(right-ppm).min())[0][0]
 		data_ft = data_ft1.transpose()[left:right].transpose()
@@ -300,31 +291,31 @@ class FID_array(object):
 		ax_all.set_ylim3d(0, acqtime[data_ft.shape[0]-1])
 		ax_all.set_zlim3d(0, (1/amp)*data_ft.max())
 
-		if ceil(plotrange[0]) == plotrange[0]:
-			nlbls = arange(ceil(plotrange[1]),ceil(plotrange[0])+1)[::-1]#[1:-1]
+		if np.ceil(plotrange[0]) == plotrange[0]:
+			nlbls = np.arange(np.ceil(plotrange[1]),np.ceil(plotrange[0])+1)[::-1]#[1:-1]
 		else:	    
-                        nlbls = arange(ceil(plotrange[1]),ceil(plotrange[0]))[::-1]#[1:-1]
+                        nlbls = np.arange(np.ceil(plotrange[1]),np.ceil(plotrange[0]))[::-1]#[1:-1]
 		lbl_ind = []
 		for i in nlbls:		
 			lbl_ind.append(np.where(abs(ppm-i) == abs(ppm-i).min())[0][0])
 		
-		lbl_ind = array(lbl_ind)
+		lbl_ind = np.array(lbl_ind)
 
-		nlbls = array(nlbls,dtype=int)
+		nlbls = np.array(nlbls,dtype=int)
 		maxlbls = 20
 		minlbls = 4
 		if len(nlbls)>2*maxlbls:
-			ind_red = array(mgrid[0:len(nlbls)-1:complex(10)],dtype=int)
-			nlbls = nlbls[ind_red]#np.array([0,int(ceil(len(nlbls)/2)),-1])]
-			lbl_ind = lbl_ind[ind_red]#np.array([0,int(ceil(len(nlbls)/2)),-1])]
+			ind_red = np.array(np.mgrid[0:len(nlbls)-1:complex(10)],dtype=int)
+			nlbls = nlbls[ind_red]#np.array([0,int(np.ceil(len(nlbls)/2)),-1])]
+			lbl_ind = lbl_ind[ind_red]#np.array([0,int(np.ceil(len(nlbls)/2)),-1])]
 
 		if len(nlbls)>maxlbls and len(nlbls)<2*maxlbls:
-			ind_red = array(mgrid[0:len(nlbls)-1:2],dtype=int)
-			nlbls = nlbls[ind_red]#np.array([0,int(ceil(len(nlbls)/2)),-1])]
-			lbl_ind = lbl_ind[ind_red]#np.array([0,int(ceil(len(nlbls)/2)),-1])]
+			ind_red = np.array(np.mgrid[0:len(nlbls)-1:2],dtype=int)
+			nlbls = nlbls[ind_red]#np.array([0,int(np.ceil(len(nlbls)/2)),-1])]
+			lbl_ind = lbl_ind[ind_red]#np.array([0,int(np.ceil(len(nlbls)/2)),-1])]
 
 		if len(nlbls)<minlbls:
-			nlbls = array([plotrange[0],mean(plotrange),plotrange[1]])#
+			nlbls = np.array([plotrange[0],mean(plotrange),plotrange[1]])#
 			lbl_ind = [0,data_ft.shape[1]/2,data_ft.shape[1]]
 
 		#print nlbls,lbl_ind,right,left,plotrange#,ind_red
@@ -379,13 +370,10 @@ class FID_array(object):
 		fig = figure(figsize=[15,6])
 		ax1 = fig.add_subplot(111)
 		if len(self.data.shape) == 2:
-			ppm = mgrid[sw_left-self.params['sw']:sw_left:complex(len(self.data[0]))]
+			ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(self.data[0]))]
 			ax1.plot(ppm[::-1],self.data[index],'k',lw=lw)
-		if len(self.data.shape) == 1:
-			ppm = mgrid[sw_left-self.params['sw']:sw_left:complex(len(self.data))]
-			ax1.plot(ppm[::-1],self.data,'k',lw=lw)
-#		ax1.set_yticklabels(ax1.get_yticks(),fontProperties)
-#		ax1.set_xticklabels(ax1.get_xticks(),fontProperties)
+		ax1.set_yticklabels(ax1.get_yticks(),fontProperties)
+		ax1.set_xticklabels(ax1.get_xticks(),fontProperties)
 		ax1.invert_xaxis()
 		ax1.set_xlabel(x_label)
 		if y_label is not None:	ax1.set_ylabel(y_label)
@@ -402,12 +390,11 @@ class FID_array(object):
 		Returns a dictionary (self.ph_space) containing a 2D array of total integrated area of FID and associated parameters.
 		"""
 		if len(self.data.shape) == 2:	data = self.data[index]
-		if len(self.data.shape) == 1:	data = self.data
-		p0 = mgrid[-180:180:complex(inc),-180:180:complex(inc)]
+		p0 = np.mgrid[-180:180:complex(inc),-180:180:complex(inc)]
 		p = [p0[0].flatten(),p0[1].flatten()]
 		p = np.array(p).transpose()
-		d_p = [sum(abs(ps(data,i[0],i[1]).real)) for i in p]
-		d = np.array(d_p).reshape(sqrt(len(d_p)),-1)
+		d_p = [sum(abs(self.ps(data,i[0],i[1]).real)) for i in p]
+		d = np.array(d_p).reshape(np.sqrt(len(d_p)),-1)
 		d = d/d.max()
 		min_i = d.min()#np.array(np.where(d==d.min())).transpose()[0]
 		max_i = d.max()#np.array(np.where(d==d.max())).transpose()[0]
@@ -420,8 +407,8 @@ class FID_array(object):
 		fig = figure()
 		ax = fig.add_subplot(111)
 		ax.imshow(self.ph_space['mat'],interpolation='nearest',cmap=cm.RdBu_r)
-		ph_min = array(where(self.ph_space['mat']==self.ph_space['mat'].min())).transpose()
-		ph_r = mgrid[-180:180:complex(self.ph_space['inc'])]
+		ph_min = np.array(where(self.ph_space['mat']==self.ph_space['mat'].min())).transpose()
+		ph_r = np.mgrid[-180:180:complex(self.ph_space['inc'])]
 		for i in ph_min: 
 			ax.plot(i[1],i[0],'xk')
 			ax.text(i[1]+1,i[0],str(round(ph_r[i[1]],3))+'\n'+str(round(ph_r[i[0]],3)),color='k',size=10,va='center')
@@ -458,7 +445,7 @@ class FID_array(object):
 					self.phaser = Phaser(data)
 					#self.phases = self.phaser.phases
 					self.phases.append(self.phaser.phases)
-					#dph.append(ps(data,p0=self.phases[-1][0],p1=self.phases[-1][1]))
+					#dph.append(self.ps(data,p0=self.phases[-1][0],p1=self.phases[-1][1]))
 			else:
 				data = self.data[index]
 				dmax = data.max()
@@ -468,15 +455,8 @@ class FID_array(object):
 				self.phases = self.phaser.phases
 				self.phases = [self.phases for i in self.data]
 				#for i in self.data:
-					#dph.append(ps(i,p0=self.phases[-1][0],p1=self.phases[-1][1]))
-			dph = [ps(i[0],p0=i[1][0],p1=i[1][1]) for i in zip(self.data/dmax,self.phases)]
-		if len(self.data.shape) == 1:
-			data = self.data
-			dmax = data.max()
-			data = data/data.max()
-			self.phaser = Phaser(data)
-			self.phases = self.phaser.phases
-			dph = ps(data,p0=self.phases[0],p1=self.phases[1])
+					#dph.append(self.ps(i,p0=self.phases[-1][0],p1=self.phases[-1][1]))
+			dph = [self.ps(i[0],p0=i[1][0],p1=i[1][1]) for i in zip(self.data/dmax,self.phases)]
 		
 		
 		if norm:		
@@ -499,25 +479,17 @@ class FID_array(object):
 		data_ph = np.ones_like(data)
 		self.phases = []
 		def err_ps(p0,data):
-			err = ps(data,p0[0],p0[1],inv=False).real
+			err = self.ps(data,p0[0],p0[1],inv=False).real
 			return np.array([err[err<thresh].sum()]*2)
 		if len(data.shape) == 2:
 			for i in range(data.shape[0]):
 				p0 = [0,0]
 				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
 				self.phases.append(phase)
-				data_ph[i] = ps(data[i],phase[0],phase[1])
+				data_ph[i] = self.ps(data[i],phase[0],phase[1])
 				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
 				sys.stdout.flush()
 				if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
-		if len(data.shape) == 1:
-			p0 = [0,0]
-			phase = leastsq(err_ps,p0,args=(data))[0]
-			self.phases = phase
-			data_ph = ps(data,phase[0],phase[1])
-			print '\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
-			sys.stdout.flush()
-			if data_ph.mean() < 0:	data_ph = -data_ph	
 		self.data = data_ph.real
 
 	def phase_area(self):
@@ -531,26 +503,18 @@ class FID_array(object):
 		data_ph = np.ones_like(data)
 		self.phases = []
 		def err_ps(p0,data):
-			err = ps(data,p0[0],p0[1],inv=False).real
+			err = self.ps(data,p0[0],p0[1],inv=False).real
 			return np.array([abs(err).sum()]*2)
 		if len(data.shape) == 2:
 			for i in range(data.shape[0]):
 				p0 = [0,0]
 				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
 				self.phases.append(phase)
-				data_ph[i] = ps(data[i],phase[0],phase[1])
+				data_ph[i] = self.ps(data[i],phase[0],phase[1])
 				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
 				sys.stdout.flush()
 				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
 				#if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
-		if len(data.shape) == 1:
-			p0 = [0,0]
-			phase = leastsq(err_ps,p0,args=(data))[0]
-			self.phases = phase
-			data_ph = ps(data,phase[0],phase[1])
-			print '\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
-			sys.stdout.flush()
-			#if abs(data_ph.min()) > data_ph.max:	data_ph = -data_ph	
 		self.data = data_ph.real
 
 	def phase_neg_area(self,thresh=0.0):
@@ -567,27 +531,19 @@ class FID_array(object):
 		data_ph = np.ones_like(data)
 		self.phases = []
 		def err_ps(p0,data):
-			err = ps(data,p0[0],p0[1],inv=False).real
-                        err = array(2*[abs(err).sum() + abs(err[err<thresh]).sum()])
+			err = self.ps(data,p0[0],p0[1],inv=False).real
+                        err = np.array(2*[abs(err).sum() + abs(err[err<thresh]).sum()])
 			return err #np.array([abs(err).sum(),abs(err[err<thresh]).sum()])
 		if len(data.shape) == 2:
 			for i in range(data.shape[0]):
 				p0 = [0,0]
 				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
 				self.phases.append(phase)
-				data_ph[i] = ps(data[i],phase[0],phase[1])
+				data_ph[i] = self.ps(data[i],phase[0],phase[1])
 				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
 				sys.stdout.flush()
 				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
 				if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
-		if len(data.shape) == 1:
-			p0 = [0,0]
-			phase = leastsq(err_ps,p0,args=(data))[0]
-			self.phases = phase
-			data_ph = ps(data,phase[0],phase[1])
-			print '\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
-			sys.stdout.flush()
-			if data_ph.mean() < 0:	data_ph = -data_ph	
 		self.data = data_ph.real
 
 	def baseline_correct(self,index=0, deg=2):
@@ -600,8 +556,6 @@ class FID_array(object):
 		"""
 		if len(self.data.shape) == 2: 
 			data = self.data[index]
-		if len(self.data.shape) == 1: 
-			data = self.data
 		self.baseliner = Baseliner(data)
 		self.bl_points = np.array(self.baseliner.xs,dtype='int32')
                 self.bl_fit(deg=deg)
@@ -615,8 +569,6 @@ class FID_array(object):
 		data = self.data.real
 		if len(self.data.shape) == 2: 
 			x = np.arange(len(data[0]),dtype='f')
-		if len(self.data.shape) == 1: 
-			x = np.arange(len(data),dtype='f')
 		m = np.ones_like(x)
 		m[self.bl_points] = 0
 		d = []
@@ -641,11 +593,9 @@ class FID_array(object):
 		"""
 		if len(self.data.shape) == 2: 
 			data = self.data[index]
-		if len(self.data.shape) == 1: 
-			data = self.data
 		self.picker = SpanSelector(data/data.max())#self.data[index])
 		self.ranges = self.picker.ranges
-		xs = list(collections.Counter(self.picker.peaks))
+		xs = list(Counter(self.picker.peaks))
 		xs = np.array(xs)
 		xs.sort()
 		peaks = []
@@ -663,6 +613,7 @@ class FID_array(object):
 		
 		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
 		"""
+
 		data = self.data.real
 		peaks = self.peaks
 		ranges = self.ranges
@@ -680,20 +631,6 @@ class FID_array(object):
 					fit.append(f)
 				fits.append(fit)
 				print 'fit # '+str(len(fits))+'/'+str(len(data))
-			self.fits = np.array(fits)
-			self.integrals = f_integrals_array(self.data,self.fits)
-		if len(data.shape)==1:
-			fit = []
-			for j in zip(peaks,ranges):
-				d_slice = data[j[1][0]:j[1][1]]
-				p_slice = j[0]-j[1][0]
-				f=f_fitp(d_slice,p_slice,gl)[0]
-				f = np.array(f).transpose()
-				f[0] += j[1][0]
-				f = f.transpose()
-				fit = f
-			fits.append(fit)
-			print 'fit # '+str(len(fits))+'/'+str(len(data))
 			self.fits = np.array(fits)
 			self.integrals = f_integrals_array(self.data,self.fits)
 
@@ -715,12 +652,9 @@ class FID_array(object):
 		if len(self.data.shape)==2:	
 			data = self.data[index]
 			paramarray = self.fits[index]
-		if len(self.data.shape)==1:	
-			data = self.data
-			paramarray = self.fits
 		
 		def i2ppm(index_value):
-			return mgrid[sw_left-self.params['sw']:sw_left:complex(len(data))][::-1][index_value]
+			return np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(data))][::-1][index_value]
 		
 		def peaknum(paramarray,peak):
 			pkr = []
@@ -736,7 +670,7 @@ class FID_array(object):
 		for irange in paramarray:
 			for ipeak in irange:
 				pk = f_pk(ipeak,x)
-				ppm = mgrid[sw_left-self.params['sw']:sw_left:complex(len(x))][::-1]
+				ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(x))][::-1]
 				ax.plot(ppm,pk,color='0.5',linewidth=1)
 				if txt == True:	text(i2ppm(int(ipeak[0])),pk.max(),str(peaknum(paramarray,ipeak)),color='#336699',fontsize='small')
 				peakplots += f_pk(ipeak,x)
@@ -761,20 +695,18 @@ class FID_array(object):
 		Returns an array of integrals by spectrum.
 		"""
 		if ranges is None:
-			if len(self.data.shape) == 1: return array([sum(self.data[i[0]:i[1]]) for i in self.ranges])
 			if len(self.data.shape) == 2 and index is None:
-				return array([[sum(j[i[0]:i[1]]) for i in self.ranges] for j in self.data])
+				return np.array([[sum(j[i[0]:i[1]]) for i in self.ranges] for j in self.data])
 			if len(self.data.shape) == 2 and index is not None:
-				if isinstance(index,int):		return array([sum(self.data[index][i[0]:i[1]]) for i in self.ranges])
-				if isinstance(index,list):	return array([[sum(self.data[j][i[0]:i[1]]) for i in self.ranges] for j in range(index[0],index[1])])
+				if isinstance(index,int):		return np.array([sum(self.data[index][i[0]:i[1]]) for i in self.ranges])
+				if isinstance(index,list):	return np.array([[sum(self.data[j][i[0]:i[1]]) for i in self.ranges] for j in range(index[0],index[1])])
 
 		if ranges is not None:
-			if len(self.data.shape) == 1: return array([sum(self.data[i[0]:i[1]]) for i in [ranges]])
 			if len(self.data.shape) == 2 and index is None:
-				return array([[sum(j[i[0]:i[1]]) for i in [ranges]] for j in self.data])
+				return np.array([[sum(j[i[0]:i[1]]) for i in [ranges]] for j in self.data])
 			if len(self.data.shape) == 2 and index is not None:
-				if isinstance(index,int):		return array([sum(self.data[index][i[0]:i[1]]) for i in [ranges]])
-				if isinstance(index,list):	return array([[sum(self.data[j][i[0]:i[1]]) for i in [ranges]] for j in range(index[0],index[1])])
+				if isinstance(index,int):		return np.array([sum(self.data[index][i[0]:i[1]]) for i in [ranges]])
+				if isinstance(index,list):	return np.array([[sum(self.data[j][i[0]:i[1]]) for i in [ranges]] for j in range(index[0],index[1])])
 		
 			
 		
@@ -852,7 +784,7 @@ class FID_array(object):
 		integral_names = np.array(self.integral_names)
 		s_concs = self.s_concs
 		s_rates = self.s_rates
-		cl = cm.Paired(mgrid[0:1:np.complex(len(self.integrals_sum))])
+		cl = cm.Paired(np.mgrid[0:1:np.complex(len(self.integrals_sum))])
 			
 		fig = figure(figsize=(10,4))
 		ax1 = fig.add_subplot(121)
@@ -934,31 +866,28 @@ class FID_array(object):
 
 		
 		
-#GENERAL FUNCTIONS
+        #GENERAL FUNCTIONS
+        @staticmethod        
+        def ps(data,p0=0.0,p1=0.0,inv=False):
+        
+        	""" 
+        	Linear Phase Correction
+        
+        	Parameters:
+        
+        	* data  Array of spectral data.
+        	* p0    Zero order phase in degrees.
+        	* p1    First order phase in degrees.
+        
+        	"""
+        	p0 = p0*np.pi/180. # convert to radians
+        	p1 = p1*np.pi/180. 
+        	#size = data.shape[-1]
+        	if len(data.shape)==2:	size = len(data[0])#data.shape[-1]
+        	if len(data.shape)==1:	size = len(data)#.shape[0]
+        	ph = np.exp(1.0j*(p0+(p1*np.arange(size)/size)))
+	        return ph*data
 
-def ps(data,p0=0.0,p1=0.0,inv=False):
-
-	""" 
-	Linear Phase Correction
-
-	Parameters:
-
-	* data  Array of spectral data.
-	* p0    Zero order phase in degrees.
-	* p1    First order phase in degrees.
-
-	"""
-	p0 = p0*pi/180. # convert to radians
-	p1 = p1*pi/180. 
-	#size = data.shape[-1]
-	if len(data.shape)==2:	size = len(data[0])#data.shape[-1]
-	if len(data.shape)==1:	size = len(data)#.shape[0]
-	ph = np.exp(1.0j*(p0+(p1*np.arange(size)/size)))
-
-	return ph*data
-
-fgss  = lambda p,x: p[2]*exp(-(p[0]-x)**2/p[1])
-flor = lambda p,x: p[2]*p[1]**2/(p[1]**2+4*(p[0]-x)**2)
 	
 
 def f_pk(p,x):
@@ -969,6 +898,8 @@ def f_pk(p,x):
 	x -- array of equal length to FID
 	Note: specifying a Gaussian fraction of 0 will produce a pure Lorentzian and vice versa.
 	"""
+        fgss  = lambda p,x: p[2]*np.exp(-(p[0]-x)**2/p[1])
+        flor = lambda p,x: p[2]*p[1]**2/(p[1]**2+4*(p[0]-x)**2)
 	f = p[-1]*fgss(p[np.array([0,1,2])],x)+(1-p[-1])*flor(p[np.array([0,3,4])],x)
 	return f
 	
@@ -1041,12 +972,12 @@ def f_fitp(data,peaks,gl):
 	p 		= p.flatten()	
 	fit 		= leastsq(f_res,p,args=(data,gl),full_output=1)
 	fits 		= np.array(abs(fit[0].reshape([-1,6])))#.transpose()
-#===================================
+        #===================================
 	if gl is not None:
 		fits = fits.transpose()
 		fits[-1] = fits[-1]*0+gl
 		fits = fits.transpose()
-#===================================
+        #===================================
 	return fits,fit[1]
 
 def f_conv(p,data):
@@ -1094,8 +1025,6 @@ def f_integrals_array(data_array,param_array):
 	if len(data_array.shape)==2:
 		for idata_params in zip(data_array,param_array):
 			ints.append(f_integrals(idata_params[0],idata_params[1]))
-	elif len(data_array.shape)==1:
-		ints.append(f_integrals(data_array,param_array))
 	return np.array(ints)
 
 	
@@ -1168,6 +1097,7 @@ class Baseliner(object):
 
 class Phaser(object):
 	def __init__(self,data):#,index=0):#, data):
+                self.ps = FID_array.ps
 		fig = figure(figsize=[15,6])
 		self.data = data
 		self.datanew = data
@@ -1194,6 +1124,7 @@ class Phaser(object):
 		self.ax.set_yticklabels(self.ax.get_yticks(),fontProperties)
 		self.ax.set_xticklabels(self.ax.get_xticks(),fontProperties)
 		show()
+
 
 	def press(self, event):
 		tb = get_current_fig_manager().toolbar
@@ -1222,7 +1153,7 @@ class Phaser(object):
 			self.phases[0] = self.phases[0] + dy
 		if self.button == 3:
 			self.phases[1] = self.phases[1] + dy
-		self.datanew = ps(self.data,p0=self.phases[0],p1=self.phases[1])
+		self.datanew = self.ps(self.data,p0=self.phases[0],p1=self.phases[1])
 		self.ax.lines[0].set_data(np.array([np.arange(len(self.datanew)),self.datanew]))
 		self.canvas.draw()#_idle()
 		print 'p0: '+str(self.phases[0])+'\t'+'p1: '+str(self.phases[1])
@@ -1255,7 +1186,7 @@ class SpanSelector:
 		self.ax.add_patch(self.rect)
 		self.ranges = []
 		self.peaks = []
-		self.ylims = array([self.ax.get_ylim()[0],self.data.max()+abs(self.ax.get_ylim()[0])])
+		self.ylims = np.array([self.ax.get_ylim()[0],self.data.max()+abs(self.ax.get_ylim()[0])])
 		self.ax.set_ylim([self.ax.get_ylim()[0],self.data.max()*1.1])
 		self.ax_lims = self.ax.get_ylim()
 		self.ax.set_xlim([0,len(self.data)])
