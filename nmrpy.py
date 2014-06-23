@@ -406,7 +406,7 @@ class FID_array(object):
 		fig = figure()
 		ax = fig.add_subplot(111)
 		ax.imshow(self.ph_space['mat'],interpolation='nearest',cmap=cm.RdBu_r)
-		ph_min = np.array(where(self.ph_space['mat']==self.ph_space['mat'].min())).transpose()
+		ph_min = np.array(np.where(self.ph_space['mat']==self.ph_space['mat'].min())).transpose()
 		ph_r = np.mgrid[-180:180:complex(self.ph_space['inc'])]
 		for i in ph_min: 
 			ax.plot(i[1],i[0],'xk')
