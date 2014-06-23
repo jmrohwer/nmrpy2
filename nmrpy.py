@@ -315,7 +315,7 @@ class FID_array(object):
 			lbl_ind = lbl_ind[ind_red]#np.array([0,int(np.ceil(len(nlbls)/2)),-1])]
 
 		if len(nlbls)<minlbls:
-			nlbls = np.array([plotrange[0],mean(plotrange),plotrange[1]])#
+			nlbls = np.array([plotrange[0],np.mean(plotrange),plotrange[1]])#
 			lbl_ind = [0,data_ft.shape[1]/2,data_ft.shape[1]]
 
 		#print nlbls,lbl_ind,right,left,plotrange#,ind_red
