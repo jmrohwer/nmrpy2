@@ -54,7 +54,7 @@ class FID_array(object):
                 self.ax = []
                 self._f_extract_proc()
                 self._peaks = None
-                self.peaks = None 
+                self.peaks = [[]]
 
         @property
         def data(self):
@@ -87,8 +87,7 @@ class FID_array(object):
 
         @peaks.setter
         def peaks(self,value):
-            if type(value) == list:
-                value = np.array(value)
+            value = [np.array(i) for i in value]
             self._peaks = value
 
 	
