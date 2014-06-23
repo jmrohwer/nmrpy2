@@ -1251,4 +1251,8 @@ class SpanSelector:
 		self.canvas.draw_idle()
 		return False
 
+if __name__ == '__main__':
+    print 'NMRPy must be imported as a module.'
+    pass 
+
 
