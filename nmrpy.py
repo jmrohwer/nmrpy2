@@ -516,11 +516,8 @@ class FID_array(object):
 				#if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
 		self.data = data_ph.real
 
-	def phase_neg_area(self,thresh=0.0):
-		"""Phase FID array by minimising negative peaks and total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
-
-		Keyword arguments:
-		thresh -- threshold below which to consider data as signal and not noise (typically negative or 0)
+	def phase_neg_area(self, thresh=0.0):
+		"""Phase FID array by minimising total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
 
 		Note: discards imaginary component.
 		
@@ -529,21 +526,111 @@ class FID_array(object):
 		data = self.data
 		data_ph = np.ones_like(data)
 		self.phases = []
-		def err_ps(p0,data):
+		def err_ps_neg(p0,data):
 			err = self.ps(data,p0[0],p0[1],inv=False).real
-                        err = np.array(2*[abs(err).sum() + abs(err[err<thresh]).sum()])
-			return err #np.array([abs(err).sum(),abs(err[err<thresh]).sum()])
+			return np.array([err[err < -thresh*max(abs(data.real))].sum()]*2)
+		def err_ps_area(p0,data):
+			err = self.ps(data,p0[0],p0[1],inv=False).real
+			return np.array([abs(err).sum()]*2)
 		if len(data.shape) == 2:
 			for i in range(data.shape[0]):
 				p0 = [0,0]
-				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
-				self.phases.append(phase)
-				data_ph[i] = self.ps(data[i],phase[0],phase[1])
-				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
+				phase1 = leastsq(err_ps_neg,p0,args=(data[i]),maxfev=10000)[0]
+				data[i] = self.ps(data[i],phase1[0],phase1[1])
+				phase2 = leastsq(err_ps_area,p0,args=(data[i]),maxfev=10000)[0]
+				data_ph[i] = self.ps(data[i],phase2[0],phase2[1])
+				self.phases.append(phase1+phase2)
+				print str(i)+'\t'+'p0: '+str(self.phases[i][0])+'\t'+'p1: '+str(self.phases[i][1])
 				sys.stdout.flush()
 				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
-				if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
+				#if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
 		self.data = data_ph.real
+
+	def phase_area_matrix(self):
+		"""Phase FID array by minimising total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
+
+		Note: discards imaginary component.
+		
+		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
+		"""
+		data = self.data
+		data_ph = np.ones_like(data)
+		self.phases = []
+		def err_ps_area(pars, data):
+                        parameters = np.reshape(pars, [-1,2])
+			err = np.array([self.ps(data[i], parameters[i][0],parameters[i][1],inv=False).real for i in range(len(data))])
+                        print pars
+			sys.stdout.flush()
+			return np.array([abs(err).sum()]*len(pars))
+		p0 = [1.0,1.0]*len(data)
+		phase1 = np.reshape(leastsq(err_ps_area,p0,args=(data),maxfev=10000)[0], [-1,2])
+		data_ph = np.array([self.ps(data[i],phase1[i][0],phase1[i][1]) for i in range(len(data))])
+		self.phases.append(reshape(phase1, [2, -1]))
+		self.data = data_ph.real
+
+
+	def phase_neg_area_matrix(self, thresh=0.0):
+		"""Phase FID array by minimising total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
+
+		Note: discards imaginary component.
+		
+		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
+		"""
+		data = self.data
+		data_ph = np.ones_like(data)
+		self.phases = []
+		def err_ps_neg(pars, data):
+                        parameters = np.reshape(pars, [-1,2])
+			err = np.array([self.ps(data[i], parameters[i][0],parameters[i][1],inv=False).real for i in range(len(data))])
+			#err = [np.array([er[er < -thresh].sum()]*2) for er in err]
+                        print pars
+			sys.stdout.flush()
+			return np.array([err[err < thresh].sum()]*len(pars))
+		def err_ps_area(pars, data):
+                        parameters = np.reshape(pars, [-1,2])
+			err = np.array([self.ps(data[i], parameters[i][0],parameters[i][1],inv=False).real for i in range(len(data))])
+			#err = [np.array([abs(er).sum()]*2) for er in err]
+                        #return [j for i in err for j in i]
+                        print pars
+			sys.stdout.flush()
+			return np.array([abs(err).sum()]*len(pars))
+		p0 = [10.0,10.0]*len(data)
+		phase1 = np.reshape(leastsq(err_ps_neg,p0,args=(data),maxfev=10000)[0], [-1,2])
+		data = [self.ps(data[i],phase1[i][0],phase1[i][1]) for i in range(len(data))]
+		phase2 = np.reshape(leastsq(err_ps_area,p0,args=(data),maxfev=10000)[0], [-1,2])
+		data_ph = np.array([self.ps(data[i],phase2[i][0],phase2[i][1]) for i in range(len(data))])
+		self.phases.append(phase1+phase2)
+		self.data = data_ph.real
+
+
+#	def phase_neg_area(self,thresh=0.0):
+#		"""Phase FID array by minimising negative peaks and total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
+#
+#		Keyword arguments:
+#		thresh -- threshold below which to consider data as signal and not noise (typically negative or 0)
+#
+#		Note: discards imaginary component.
+#		
+#		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
+#		"""
+#		data = self.data
+#		data_ph = np.ones_like(data)
+#		self.phases = []
+#		def err_ps(p0,data):
+#			err = self.ps(data,p0[0],p0[1],inv=False).real
+#                        err = np.array(2*[abs(err).sum() + abs(err[err<thresh]).sum()])
+#			return err #np.array([abs(err).sum(),abs(err[err<thresh]).sum()])
+#		if len(data.shape) == 2:
+#			for i in range(data.shape[0]):
+#				p0 = [0,0]
+#				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
+#				self.phases.append(phase)
+#				data_ph[i] = self.ps(data[i],phase[0],phase[1])
+#				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
+#				sys.stdout.flush()
+#				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
+#				if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
+#		self.data = data_ph.real
 
 	def baseline_correct(self,index=0, deg=2):
 		"""Instantiate a widget to select points for baseline correction which are stored in self.bl_points.
