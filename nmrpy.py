@@ -506,7 +506,7 @@ class FID_array(object):
 			return np.array([abs(err).sum()]*2)
 		if len(data.shape) == 2:
 			for i in range(data.shape[0]):
-				p0 = [0,0]
+				p0 = [1.0,0.0]
 				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
 				self.phases.append(phase)
 				data_ph[i] = self.ps(data[i],phase[0],phase[1])
