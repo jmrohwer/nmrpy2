@@ -13,6 +13,7 @@ from matplotlib.collections import PolyCollection
 from matplotlib import patches, rc
 from matplotlib.pylab import show, get_current_fig_manager, figure, cm, text
 import matplotlib.ticker as ticker 
+from multiprocessing import Pool, cpu_count
 try:
     import pywt
 except:
@@ -31,6 +32,11 @@ rc('text.latex', preamble = \
     '\usepackage{blindtext}' )
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'],'weight' : 'normal'}
+
+
+
+
+
 
 
 
@@ -490,6 +496,26 @@ class FID_array(object):
 				sys.stdout.flush()
 				if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
 		self.data = data_ph.real
+
+        def phase_area_single(self, n):
+		def err_ps(pars, data):
+			err = self.ps(data, pars[0], pars[1], inv=False).real
+			return np.array([abs(err).sum()]*2)
+
+		phase = leastsq(err_ps, [1.0, 0.0], args=(self.data[n]), maxfev=10000)[0]
+		self.data[n] = self.ps(self.data[n], phase[0], phase[1])
+                print '%i\t%d\t%d'%(n, phase[0], phase[1])
+                return self.data[n]
+
+        """
+        Note that the following function has to use a top-level global function 'unwrap_fid' to parallelise as it is a class method
+        """
+        def phase_area_mp(self):
+                print 'fid\tp0\tp1'
+                proc_pool = Pool()
+                data_ph = proc_pool.map(unwrap_fid, zip([self]*len(self.data), range(len(self.data))))
+                self.data = data_ph
+
 
 	def phase_area(self):
 		"""Phase FID array by minimising total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
@@ -1249,6 +1275,11 @@ class SpanSelector:
 		if vmin>vmax: vmin, vmax = vmax, vmin
 		self.canvas.draw_idle()
 		return False
+
+
+def unwrap_fid(arg, **kwarg):
+    return FID_array.phase_area_single(*arg, **kwarg)
+
 
 if __name__ == '__main__':
     print 'NMRPy must be imported as a module.'
