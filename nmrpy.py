@@ -712,7 +712,7 @@ class FID_array(object):
                 self._deconv(gl=gl)
 
         def _deconv_single(self, n):
-            fits = []
+            fit = []
 	    for j in zip(self.peaks, self.ranges):
 		d_slice = self.data[n][j[1][0]:j[1][1]]
 		p_slice = j[0]-j[1][0]
@@ -720,17 +720,17 @@ class FID_array(object):
 		f = np.array(f).transpose()
 		f[0] += j[1][0]
 		f = f.transpose()
-		fits.append(f)
+		fit.append(f)
 	    print 'fit %i/%i'%(n, len(self.data))
-	    self.fits = np.array(fits)
-	    self.integrals = f_integrals(self.data[n], self.fits)
-            return self.fits, self.integrals
+	    integrals = f_integrals(self.data[n], fit)
+            return fit, integrals
 
         def _deconv_mp(self, gl=None):
             self._gl = gl
             proc_pool = Pool()
             f = proc_pool.map(_unwrap_fid_deconv, zip([self]*len(self.data), range(len(self.data))))
             self.fits, self.integrals = np.transpose(f)
+            self.integrals = np.array([list(i) for i in self.integrals])
             return f
 
 	def _deconv(self, gl=None):
