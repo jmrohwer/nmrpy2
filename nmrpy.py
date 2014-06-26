@@ -472,17 +472,29 @@ class FID_array(object):
 
 
         def phase_auto(self, method='area', thresh=0.0, mp=True):
-                if method == 'area':
-                    if mp:
-                        self._phase_area_mp()
-                    else:
-                        self._phase_area()
+            """ Automatically phase array of spectra.
 
-                if method == 'neg':
-                    self._phase_neg(thresh=thresh) 
 
-                if method == 'neg_area':
-                    self._phase_neg_area(thresh=thresh)
+		Keyword arguments:
+                method -- phasing method, the available options are:
+                            area     - minimise total integral of spectrum
+                            neg      - minimise negative area of spectrum
+                            neg_area - a combination of the previous two methods
+		thresh -- threshold below which to consider data as signal and not noise (typically negative or 0), used by the 'neg' method
+                mp     -- multiprocessing, parallelise the phasing process over multiple processors, significantly reduces computation time
+
+            """
+            if method == 'area':
+                if mp:
+                    self._phase_area_mp()
+                else:
+                    self._phase_area()
+ 
+            if method == 'neg':
+                self._phase_neg(thresh=thresh) 
+ 
+            if method == 'neg_area':
+                self._phase_neg_area(thresh=thresh)
 
 
 	def _phase_neg(self, thresh=0.0):
