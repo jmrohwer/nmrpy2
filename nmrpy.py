@@ -491,38 +491,16 @@ class FID_array(object):
                     self._phase_area()
  
             if method == 'neg':
-                self._phase_neg(thresh=thresh) 
- 
+                if mp:
+                    self._phase_neg_mp(thresh=thresh)
+                else:
+                    self._phase_neg(thresh=thresh)
+
             if method == 'neg_area':
-                self._phase_neg_area(thresh=thresh)
-
-
-	def _phase_neg(self, thresh=0.0):
-		"""Phase FID array by minimising negative peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
-
-		Keyword arguments:
-		thresh -- threshold below which to consider data as signal and not noise (typically negative or 0)
-
-		Note: discards imaginary component.
-		
-		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
-		"""
-		data = self.data
-		data_ph = np.ones_like(data)
-		self.phases = []
-		def err_ps(p0,data):
-			err = self.ps(data,p0[0],p0[1],inv=False).real
-			return np.array([err[err<thresh].sum()]*2)
-		if len(data.shape) == 2:
-			for i in range(data.shape[0]):
-				p0 = [0,0]
-				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
-				self.phases.append(phase)
-				data_ph[i] = self.ps(data[i],phase[0],phase[1])
-				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
-				sys.stdout.flush()
-				if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
-		self.data = data_ph.real
+                if mp:
+                    self._phase_neg_area_mp(thresh=thresh)
+                else:
+                    self._phase_neg_area(thresh=thresh)
 
         def _phase_area_single(self, n):
 		def err_ps(pars, data):
@@ -534,23 +512,69 @@ class FID_array(object):
                 print '%i\t%d\t%d'%(n, phase[0], phase[1])
                 return self.data[n]
 
+        def _phase_neg_single(self, n):
+		def err_ps(pars, data):
+			err = self.ps(data, pars[0], pars[1], inv=False).real
+			return np.array([err[err<self._thresh].sum()]*2)
+
+		phase = leastsq(err_ps, [1.0, 0.0], args=(self.data[n]), maxfev=10000)[0]
+		self.data[n] = self.ps(self.data[n], phase[0], phase[1])
+                print '%i\t%d\t%d'%(n, phase[0], phase[1])
+                return self.data[n]
+        
+        def _phase_neg_area_single(self, n):
+		def err_ps(pars, data):
+			err = self.ps(data, pars[0], pars[1], inv=False).real
+                        err = np.array(2*[abs(err).sum() + abs(err[err<self._thresh]).sum()])
+			return err 
+		phase = leastsq(err_ps, [1.0, 0.0], args=(self.data[n]), maxfev=10000)[0]
+		self.data[n] = self.ps(self.data[n], phase[0], phase[1])
+                print '%i\t%d\t%d'%(n, phase[0], phase[1])
+                return self.data[n]
+
+
+
         """
         Note that the following function has to use a top-level global function '_unwrap_fid' to parallelise as it is a class method
         """
-        def _phase_area_mp(self):
+        def _phase_area_mp(self, discard_imaginary=True):
                 print 'fid\tp0\tp1'
                 proc_pool = Pool()
-                data_ph = proc_pool.map(_unwrap_fid, zip([self]*len(self.data), range(len(self.data))))
-                self.data = data_ph
+                data_ph = proc_pool.map(_unwrap_fid_area, zip([self]*len(self.data), range(len(self.data))))
+		if discard_imaginary:
+                    self.data = data_ph.real
+                else:
+                    self.data = data_ph
+
+        def _phase_neg_mp(self, thresh=0.0, discard_imaginary=True):
+                print 'fid\tp0\tp1'
+                self._thresh = thresh
+                proc_pool = Pool()
+                data_ph = proc_pool.map(_unwrap_fid_neg, zip([self]*len(self.data), range(len(self.data))))
+		if discard_imaginary:
+                    self.data = data_ph.real
+                else:
+                    self.data = data_ph
+
+        def _phase_neg_area_mp(self, thresh=0.0, discard_imaginary=True):
+                print 'fid\tp0\tp1'
+                self._thresh = thresh
+                proc_pool = Pool()
+                data_ph = proc_pool.map(_unwrap_fid_neg_area, zip([self]*len(self.data), range(len(self.data))))
+		if discard_imaginary:
+                    self.data = data_ph.real
+                else:
+                    self.data = data_ph
 
 
-	def _phase_area(self):
+	def _phase_area(self, discard_imaginary=True):
 		"""Phase FID array by minimising total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
 
 		Note: discards imaginary component.
 		
 		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
 		"""
+                print 'fid\tp0\tp1'
 		data = self.data
 		data_ph = np.ones_like(data)
 		self.phases = []
@@ -563,13 +587,47 @@ class FID_array(object):
 				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
 				self.phases.append(phase)
 				data_ph[i] = self.ps(data[i],phase[0],phase[1])
-				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
+                                print '%i\t%d\t%d'%(i, phase[0], phase[1])
 				sys.stdout.flush()
 				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
 				#if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
-		self.data = data_ph.real
+		if discard_imaginary:
+                    self.data = data_ph.real
+                else:
+                    self.data = data_ph
 
-	def _phase_neg_area(self,thresh=0.0):
+	def _phase_neg(self, thresh=0.0, discard_imaginary=True):
+		"""Phase FID array by minimising negative peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
+
+		Keyword arguments:
+		thresh -- threshold below which to consider data as signal and not noise (typically negative or 0)
+
+		Note: discards imaginary component.
+		
+		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
+		"""
+                print 'fid\tp0\tp1'
+		data = self.data
+		data_ph = np.ones_like(data)
+		self.phases = []
+		def err_ps(p0,data):
+			err = self.ps(data,p0[0],p0[1],inv=False).real
+			return np.array([err[err<thresh].sum()]*2)
+		if len(data.shape) == 2:
+			for i in range(data.shape[0]):
+				p0 = [0,0]
+				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
+				self.phases.append(phase)
+				data_ph[i] = self.ps(data[i],phase[0],phase[1])
+                                print '%i\t%d\t%d'%(i, phase[0], phase[1])
+				sys.stdout.flush()
+				if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
+		if discard_imaginary:
+                    self.data = data_ph.real
+                else:
+                    self.data = data_ph
+
+	def _phase_neg_area(self, thresh=0.0, discard_imaginary=True):
 		"""Phase FID array by minimising negative peaks and total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
 
 		Keyword arguments:
@@ -579,6 +637,7 @@ class FID_array(object):
 		
 		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
 		"""
+                print 'fid\tp0\tp1'
 		data = self.data
 		data_ph = np.ones_like(data)
 		self.phases = []
@@ -592,11 +651,16 @@ class FID_array(object):
 				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
 				self.phases.append(phase)
 				data_ph[i] = self.ps(data[i],phase[0],phase[1])
-				print str(i)+'\t'+'p0: '+str(phase[0])+'\t'+'p1: '+str(phase[1])
+                                print '%i\t%d\t%d'%(i, phase[0], phase[1])
 				sys.stdout.flush()
 				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
 				if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
-		self.data = data_ph.real
+		if discard_imaginary:
+                    self.data = data_ph.real
+                else:
+                    self.data = data_ph
+
+
 
 	def baseline_correct(self,index=0, deg=2):
 		"""Instantiate a widget to select points for baseline correction which are stored in self.bl_points.
@@ -1326,8 +1390,14 @@ class SpanSelector:
 		return False
 
 
-def _unwrap_fid(arg, **kwarg):
+def _unwrap_fid_area(arg, **kwarg):
     return FID_array._phase_area_single(*arg, **kwarg)
+
+def _unwrap_fid_neg(arg, **kwarg):
+    return FID_array._phase_neg_single(*arg, **kwarg)
+
+def _unwrap_fid_neg_area(arg, **kwarg):
+    return FID_array._phase_neg_area_single(*arg, **kwarg)
 
 def _unwrap_fid_deconv(arg, **kwarg):
     return FID_array._deconv_single(*arg, **kwarg)
