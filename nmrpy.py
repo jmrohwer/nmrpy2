@@ -430,7 +430,7 @@ class FID_array(object):
                 show()
 
 	
-	def phase(self,index=0,universal=False,norm=True):
+	def phase_manual(self,index=0,universal=False,norm=True):
 		"""Instantiate a widget for manual phasing of specified FID.
 		
 		Keyword arguments:
@@ -468,9 +468,24 @@ class FID_array(object):
                     self.data = np.array(dph)
 		else:		
                     self.data = np.array(dph)*dmax
-		
+	
 
-	def phase_neg(self,thresh=0.0):
+
+        def phase_auto(self, method='area', thresh=0.0, mp=True):
+                if method == 'area':
+                    if mp:
+                        self._phase_area_mp()
+                    else:
+                        self._phase_area()
+
+                if method == 'neg':
+                    self._phase_neg(thresh=thresh) 
+
+                if method == 'neg_area':
+                    self._phase_neg_area(thresh=thresh)
+
+
+	def _phase_neg(self, thresh=0.0):
 		"""Phase FID array by minimising negative peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
 
 		Keyword arguments:
@@ -497,7 +512,7 @@ class FID_array(object):
 				if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
 		self.data = data_ph.real
 
-        def phase_area_single(self, n):
+        def _phase_area_single(self, n):
 		def err_ps(pars, data):
 			err = self.ps(data, pars[0], pars[1], inv=False).real
 			return np.array([abs(err).sum()]*2)
@@ -508,16 +523,16 @@ class FID_array(object):
                 return self.data[n]
 
         """
-        Note that the following function has to use a top-level global function 'unwrap_fid' to parallelise as it is a class method
+        Note that the following function has to use a top-level global function '_unwrap_fid' to parallelise as it is a class method
         """
-        def phase_area_mp(self):
+        def _phase_area_mp(self):
                 print 'fid\tp0\tp1'
                 proc_pool = Pool()
-                data_ph = proc_pool.map(unwrap_fid, zip([self]*len(self.data), range(len(self.data))))
+                data_ph = proc_pool.map(_unwrap_fid, zip([self]*len(self.data), range(len(self.data))))
                 self.data = data_ph
 
 
-	def phase_area(self):
+	def _phase_area(self):
 		"""Phase FID array by minimising total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
 
 		Note: discards imaginary component.
@@ -542,7 +557,7 @@ class FID_array(object):
 				#if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
 		self.data = data_ph.real
 
-	def phase_neg_area(self,thresh=0.0):
+	def _phase_neg_area(self,thresh=0.0):
 		"""Phase FID array by minimising negative peaks and total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
 
 		Keyword arguments:
@@ -629,7 +644,7 @@ class FID_array(object):
 			peaks.append(np.array(x[x<=i[1]]))
 		self.peaks = peaks
 
-        def deconv_single(self, n):
+        def _deconv_single(self, n):
             fits = []
 	    for j in zip(self.peaks, self.ranges):
 		d_slice = self.data[n][j[1][0]:j[1][1]]
@@ -647,7 +662,7 @@ class FID_array(object):
         def deconv_mp(self, gl=None):
             self._gl = gl
             proc_pool = Pool()
-            f = proc_pool.map(unwrap_fid_deconv, zip([self]*len(self.data), range(len(self.data))))
+            f = proc_pool.map(_unwrap_fid_deconv, zip([self]*len(self.data), range(len(self.data))))
             self.fits, self.integrals = np.transpose(f)
             return f
 
@@ -1299,11 +1314,11 @@ class SpanSelector:
 		return False
 
 
-def unwrap_fid(arg, **kwarg):
-    return FID_array.phase_area_single(*arg, **kwarg)
+def _unwrap_fid(arg, **kwarg):
+    return FID_array._phase_area_single(*arg, **kwarg)
 
-def unwrap_fid_deconv(arg, **kwarg):
-    return FID_array.deconv_single(*arg, **kwarg)
+def _unwrap_fid_deconv(arg, **kwarg):
+    return FID_array._deconv_single(*arg, **kwarg)
 
 if __name__ == '__main__':
     print 'NMRPy must be imported as a module.'
