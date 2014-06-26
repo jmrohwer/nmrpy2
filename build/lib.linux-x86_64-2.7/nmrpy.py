@@ -720,6 +720,22 @@ class FID_array(object):
 			peaks.append(np.array(x[x<=i[1]]))
 		self.peaks = peaks
 
+        def deconv(self, gl=None, mp=True):
+            """Deconvolute array of spectra (self.data) using specified peak positions (self.peaks) and ranges (self.ranges) by fitting the data with combined Gaussian/Lorentzian functions. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
+		
+		Keyword arguments:
+		gl -- ratio of peak function to be Gaussian (1 -- pure Gaussian, 0 -- pure Lorentzian)
+                mp     -- multiprocessing, parallelise the deconvlution process over multiple processors, significantly reduces computation time
+		
+		
+		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
+            """
+            print gl
+            if mp:
+                self._deconv_mp(gl=gl)
+            else:
+                self._deconv(gl=gl)
+
         def _deconv_single(self, n):
             fits = []
 	    for j in zip(self.peaks, self.ranges):
@@ -735,14 +751,14 @@ class FID_array(object):
 	    self.integrals = f_integrals(self.data[n], self.fits)
             return self.fits, self.integrals
 
-        def deconv_mp(self, gl=None):
+        def _deconv_mp(self, gl=None):
             self._gl = gl
             proc_pool = Pool()
             f = proc_pool.map(_unwrap_fid_deconv, zip([self]*len(self.data), range(len(self.data))))
             self.fits, self.integrals = np.transpose(f)
             return f
 
-	def deconv(self, gl=None):
+	def _deconv(self, gl=None):
 		"""Deconvolute array of spectra (self.data) using specified peak positions (self.peaks) and ranges (self.ranges) by fitting the data with combined Gaussian/Lorentzian functions. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
 		
 		Keyword arguments:
