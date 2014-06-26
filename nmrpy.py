@@ -471,7 +471,7 @@ class FID_array(object):
 	
 
 
-        def phase_auto(self, method='area', thresh=0.0, mp=True):
+        def phase_auto(self, method='area', thresh=0.0, mp=True, discard_imaginary=True):
             """ Automatically phase array of spectra.
 
 
@@ -482,25 +482,25 @@ class FID_array(object):
                             neg_area - a combination of the previous two methods
 		thresh -- threshold below which to consider data as signal and not noise (typically negative or 0), used by the 'neg' method
                 mp     -- multiprocessing, parallelise the phasing process over multiple processors, significantly reduces computation time
-
+                discard_imaginary -- discards imaginary component of complex values after phasing
             """
             if method == 'area':
                 if mp:
-                    self._phase_area_mp()
+                    self._phase_area_mp(discard_imaginary=discard_imaginary)
                 else:
-                    self._phase_area()
+                    self._phase_area(discard_imaginary=discard_imaginary)
  
             if method == 'neg':
                 if mp:
-                    self._phase_neg_mp(thresh=thresh)
+                    self._phase_neg_mp(thresh=thresh, discard_imaginary=discard_imaginary)
                 else:
-                    self._phase_neg(thresh=thresh)
+                    self._phase_neg(thresh=thresh, discard_imaginary=discard_imaginary)
 
             if method == 'neg_area':
                 if mp:
-                    self._phase_neg_area_mp(thresh=thresh)
+                    self._phase_neg_area_mp(thresh=thresh, discard_imaginary=discard_imaginary)
                 else:
-                    self._phase_neg_area(thresh=thresh)
+                    self._phase_neg_area(thresh=thresh, discard_imaginary=discard_imaginary)
 
         def _phase_area_single(self, n):
 		def err_ps(pars, data):
