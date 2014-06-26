@@ -568,12 +568,6 @@ class FID_array(object):
 
 
 	def _phase_area(self, discard_imaginary=True):
-		"""Phase FID array by minimising total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
-
-		Note: discards imaginary component.
-		
-		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
-		"""
                 print 'fid\tp0\tp1'
 		data = self.data
 		data_ph = np.ones_like(data)
@@ -597,15 +591,6 @@ class FID_array(object):
                     self.data = data_ph
 
 	def _phase_neg(self, thresh=0.0, discard_imaginary=True):
-		"""Phase FID array by minimising negative peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
-
-		Keyword arguments:
-		thresh -- threshold below which to consider data as signal and not noise (typically negative or 0)
-
-		Note: discards imaginary component.
-		
-		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
-		"""
                 print 'fid\tp0\tp1'
 		data = self.data
 		data_ph = np.ones_like(data)
@@ -628,15 +613,6 @@ class FID_array(object):
                     self.data = data_ph
 
 	def _phase_neg_area(self, thresh=0.0, discard_imaginary=True):
-		"""Phase FID array by minimising negative peaks and total area under the peaks. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
-
-		Keyword arguments:
-		thresh -- threshold below which to consider data as signal and not noise (typically negative or 0)
-
-		Note: discards imaginary component.
-		
-		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
-		"""
                 print 'fid\tp0\tp1'
 		data = self.data
 		data_ph = np.ones_like(data)
@@ -730,7 +706,6 @@ class FID_array(object):
 		
 		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
             """
-            print gl
             if mp:
                 self._deconv_mp(gl=gl)
             else:
@@ -759,14 +734,6 @@ class FID_array(object):
             return f
 
 	def _deconv(self, gl=None):
-		"""Deconvolute array of spectra (self.data) using specified peak positions (self.peaks) and ranges (self.ranges) by fitting the data with combined Gaussian/Lorentzian functions. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
-		
-		Keyword arguments:
-		gl -- ratio of peak function to be Gaussian (1 -- pure Gaussian, 0 -- pure Lorentzian)
-		
-		
-		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
-		"""
 
 		data = self.data.real
 		peaks = self.peaks
