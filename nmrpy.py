@@ -540,7 +540,7 @@ class FID_array(object):
         def _phase_area_mp(self, discard_imaginary=True):
                 print 'fid\tp0\tp1'
                 proc_pool = Pool()
-                data_ph = proc_pool.map(_unwrap_fid_area, zip([self]*len(self.data), range(len(self.data))))
+                data_ph = np.array(proc_pool.map(_unwrap_fid_area, zip([self]*len(self.data), range(len(self.data)))))
 		if discard_imaginary:
                     self.data = data_ph.real
                 else:
@@ -550,7 +550,7 @@ class FID_array(object):
                 print 'fid\tp0\tp1'
                 self._thresh = thresh
                 proc_pool = Pool()
-                data_ph = proc_pool.map(_unwrap_fid_neg, zip([self]*len(self.data), range(len(self.data))))
+                data_ph = np.array(proc_pool.map(_unwrap_fid_neg, zip([self]*len(self.data), range(len(self.data)))))
 		if discard_imaginary:
                     self.data = data_ph.real
                 else:
@@ -560,7 +560,7 @@ class FID_array(object):
                 print 'fid\tp0\tp1'
                 self._thresh = thresh
                 proc_pool = Pool()
-                data_ph = proc_pool.map(_unwrap_fid_neg_area, zip([self]*len(self.data), range(len(self.data))))
+                data_ph = np.array(proc_pool.map(_unwrap_fid_neg_area, zip([self]*len(self.data), range(len(self.data)))))
 		if discard_imaginary:
                     self.data = data_ph.real
                 else:
