@@ -629,7 +629,29 @@ class FID_array(object):
 			peaks.append(np.array(x[x<=i[1]]))
 		self.peaks = peaks
 
-	def deconv(self,gl=None):
+        def deconv_single(self, n):
+            fits = []
+	    for j in zip(self.peaks, self.ranges):
+		d_slice = self.data[n][j[1][0]:j[1][1]]
+		p_slice = j[0]-j[1][0]
+		f = f_fitp(d_slice, p_slice, self._gl)[0]
+		f = np.array(f).transpose()
+		f[0] += j[1][0]
+		f = f.transpose()
+		fits.append(f)
+	    print 'fit %i/%i'%(n, len(self.data))
+	    self.fits = np.array(fits)
+	    self.integrals = f_integrals(self.data[n], self.fits)
+            return self.fits, self.integrals
+
+        def deconv_mp(self, gl=None):
+            self._gl = gl
+            proc_pool = Pool()
+            f = proc_pool.map(unwrap_fid_deconv, zip([self]*len(self.data), range(len(self.data))))
+            self.fits, self.integrals = np.transpose(f)
+            return f
+
+	def deconv(self, gl=None):
 		"""Deconvolute array of spectra (self.data) using specified peak positions (self.peaks) and ranges (self.ranges) by fitting the data with combined Gaussian/Lorentzian functions. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
 		
 		Keyword arguments:
@@ -1280,6 +1302,8 @@ class SpanSelector:
 def unwrap_fid(arg, **kwarg):
     return FID_array.phase_area_single(*arg, **kwarg)
 
+def unwrap_fid_deconv(arg, **kwarg):
+    return FID_array.deconv_single(*arg, **kwarg)
 
 if __name__ == '__main__':
     print 'NMRPy must be imported as a module.'
