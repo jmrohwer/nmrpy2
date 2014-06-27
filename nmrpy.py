@@ -792,17 +792,21 @@ class FID_array(object):
 			for ipeak in irange:
 				pk = f_pk(ipeak,x)
 				ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(x))][::-1]
-				ax.plot(ppm,pk,color='0.5',linewidth=1)
+				ax.plot(ppm, pk/max(data), color='0.5', linewidth=1)
 				if txt == True:	text(i2ppm(int(ipeak[0])),pk.max(),str(peaknum(paramarray,ipeak)),color='#336699',fontsize='small')
 				peakplots += f_pk(ipeak,x)
-		ax.plot(ppm,data-peakplots,color=cl[2],linewidth=1)
-		ax.plot(ppm,data,color='k',linewidth=1)	
-		ax.plot(ppm,peakplots,'-',color=cl[0],linewidth=1)
+
+                #these plots are all normalised
+		ax.plot(ppm,(data-peakplots)/max(data), color=cl[2], linewidth=1)
+		ax.plot(ppm,data/max(data), color='k', linewidth=1)	
+		ax.plot(ppm,peakplots/max(data), '-', color=cl[0], linewidth=1)
 		ax.invert_xaxis()
 		ax.set_xlabel(x_label)
 		while ax.get_yticks()[0] < 0.0:	
 			ax.set_yticks(ax.get_yticks()[1:])
 			ax.set_yticklabels(ax.get_yticks())
+		ax.set_yticklabels(ax.get_yticks(),fontProperties)
+		ax.set_xticklabels(ax.get_xticks(),fontProperties)
 		if filename is not None: fig_all.savefig(filename,format='pdf')
 		show()
 
