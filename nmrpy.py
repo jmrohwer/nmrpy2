@@ -784,7 +784,7 @@ class FID_array(object):
 					pkr.append(np.array(j-peak).sum())
 			return np.where(np.array(pkr)==0.)[0][0]
 		cl = ['#336699','#999966','#990000']
-		fig = figure(figsize=[15,6])
+		fig = figure(figsize=[8,4])
 		ax = fig.add_subplot(111)
 		x = np.arange(len(data))
 		peakplots = 0
@@ -803,6 +803,8 @@ class FID_array(object):
 		ax.plot(ppm,peakplots/max(data), '-', color=cl[0], linewidth=1)
 		ax.invert_xaxis()
 		ax.set_xlabel(x_label)
+		box1 = ax.get_position()
+		ax.set_position([box1.x0, box1.y0+0.05*box1.height, box1.width, box1.height * 0.95])
 		while ax.get_yticks()[0] < 0.0:	
 			ax.set_yticks(ax.get_yticks()[1:])
 		if filename is not None: fig_all.savefig(filename,format='pdf')
@@ -922,8 +924,8 @@ class FID_array(object):
 		# Shink current axis by 20%
 		box1 = ax1.get_position()
 		box2 = ax2.get_position()
-		ax1.set_position([box1.x0, box2.y0, box1.width * 0.85, box1.height])
-		ax2.set_position([box1.x0+1.1*box1.width, box2.y0, box2.width * 0.85, box2.height])
+		ax1.set_position([box1.x0, box2.y0+0.05*box1.height, box1.width * 0.85, box1.height * 0.95])
+		ax2.set_position([box1.x0+1.1*box1.width, box2.y0+0.05*box1.height, box2.width * 0.85, box2.height * 0.95])
 		# Put a legend to the right of the current axis
 		leg = ax2.legend(loc='center left', bbox_to_anchor=(1., 0.5),fancybox=True,shadow=True)
 		for i in range(len(leg.legendHandles)):
