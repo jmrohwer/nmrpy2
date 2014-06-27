@@ -11,6 +11,7 @@ from collections import Counter
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 from matplotlib import patches, rc
+from matplotlib.font_manager import FontProperties
 from matplotlib.pylab import show, get_current_fig_manager, figure, cm, text
 import matplotlib.ticker as ticker 
 from multiprocessing import Pool, cpu_count
@@ -21,18 +22,18 @@ except:
 
 
 #configure fonts   
-rc('text', usetex=True)
 rc('text.latex', preamble = \
-    '\usepackage{amsmath},' \
-    '\usepackage{yfonts},' \
-    '\usepackage[T1]{fontenc},' \
-    '\usepackage[latin1]{inputenc},' \
-    '\usepackage{txfonts},' \
-    '\usepackage{lmodern},' \
-    '\usepackage{blindtext}' )
+    '\usepackage{sfmath},' \
+    '\usepackage{amsmath},' ) 
+#    '\usepackage{yfonts},' \
+#    '\usepackage[T1]{fontenc},' \
+#    '\usepackage[latin1]{inputenc},' \
+#    '\usepackage{txfonts},' \
+#    '\usepackage{lmodern},' \
+#    '\usepackage{blindtext}' )
+rc('text', usetex=True)
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'],'weight' : 'normal'}
-
 
 
 
@@ -376,9 +377,7 @@ class FID_array(object):
 		ax1 = fig.add_subplot(111)
 		if len(self.data.shape) == 2:
 			ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(self.data[0]))]
-			ax1.plot(ppm[::-1],self.data[index],'k',lw=lw)
-		ax1.set_yticklabels(ax1.get_yticks(),fontProperties)
-		ax1.set_xticklabels(ax1.get_xticks(),fontProperties)
+			ax1.plot(ppm[::-1],self.data[index]/max(self.data[index]),'k',lw=lw)
 		ax1.invert_xaxis()
 		ax1.set_xlabel(x_label)
 		if y_label is not None:	ax1.set_ylabel(y_label)
@@ -756,7 +755,7 @@ class FID_array(object):
 			self.integrals = f_integrals_array(self.data,self.fits)
 
 
-	def plot_deconv(self,index=0,txt=True,sw_left=0,x_label='ppm',filename=None):
+	def plot_deconv(self,index=0,txt=True,sw_left=0,x_label='ppm', filename=None):
 		"""Generate a plot of data with fitted peaks.
 		
 		Keyword arguments:
@@ -770,6 +769,7 @@ class FID_array(object):
 		Plot of data (black), fitted Gaussian/Lorentzian peakshapes (blue), residual (red).
 		
 		"""
+
 		if len(self.data.shape)==2:	
 			data = self.data[index]
 			paramarray = self.fits[index]
@@ -793,7 +793,8 @@ class FID_array(object):
 				pk = f_pk(ipeak,x)
 				ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(x))][::-1]
 				ax.plot(ppm, pk/max(data), color='0.5', linewidth=1)
-				if txt == True:	text(i2ppm(int(ipeak[0])),pk.max(),str(peaknum(paramarray,ipeak)),color='#336699',fontsize='small')
+				if txt:	
+                                    text(i2ppm(int(ipeak[0])), 0.1+pk.max()/max(data), str(peaknum(paramarray,ipeak)), color='#336699')
 				peakplots += f_pk(ipeak,x)
 
                 #these plots are all normalised
@@ -804,9 +805,6 @@ class FID_array(object):
 		ax.set_xlabel(x_label)
 		while ax.get_yticks()[0] < 0.0:	
 			ax.set_yticks(ax.get_yticks()[1:])
-			ax.set_yticklabels(ax.get_yticks())
-		ax.set_yticklabels(ax.get_yticks(),fontProperties)
-		ax.set_xticklabels(ax.get_xticks(),fontProperties)
 		if filename is not None: fig_all.savefig(filename,format='pdf')
 		show()
 
@@ -920,11 +918,7 @@ class FID_array(object):
 			ax2.plot(self.t,s_rates[i],'-',lw=2,color=cl[i],label=integral_names[i])
 		ax1.grid()
 		ax2.grid()
-		ax2.set_xlim([self.t[0],self.t[-1]])#,ax2.get_xlim()[1]])
-		ax1.set_yticklabels(ax1.get_yticks(),fontProperties)
-		ax1.set_xticklabels(ax1.get_xticks(),fontProperties)
-		ax2.set_yticklabels(ax2.get_yticks(),fontProperties)
-		ax2.set_xticklabels(ax2.get_xticks(),fontProperties)
+		ax2.set_xlim([self.t[0],self.t[-1]])
 		# Shink current axis by 20%
 		box1 = ax1.get_position()
 		box2 = ax2.get_position()
@@ -939,6 +933,7 @@ class FID_array(object):
 		ax1.set_ylabel(y_label1)
 		ax2.set_xlabel(x_label2)
 		ax2.set_ylabel(y_label2)
+                #fig.subplots_adjust(bottom=0.15)
 
 		show()
 
@@ -1180,8 +1175,6 @@ class Baseliner(object):
 		cursor.horizOn = False
 		self.ax.set_xlim([0,len(self.data)])
 		self.ax.text(0.05*self.ax.get_xlim()[1],0.9*self.ax.get_ylim()[1],'Baseline correction\nLeft - select points')
-		self.ax.set_yticklabels(self.ax.get_yticks(),fontProperties)
-		self.ax.set_xticklabels(self.ax.get_xticks(),fontProperties)
 		show()
 
 
@@ -1246,8 +1239,6 @@ class Phaser(object):
 		self.ylims = [self.ax.get_ylim()[0],self.ax.get_ylim()[1]+abs(self.ax.get_ylim()[0])]
 		cursor = Cursor(self.ax, useblit=True,color='k', linewidth=0.5 )
 		cursor.horizOn = False
-		self.ax.set_yticklabels(self.ax.get_yticks(),fontProperties)
-		self.ax.set_xticklabels(self.ax.get_xticks(),fontProperties)
 		show()
 
 
