@@ -70,8 +70,8 @@ class FID_array(object):
         @data.setter
         def data(self, value):
             value = np.array(value)
-            if len(value) <= 1:
-                raise ValueError('FID data must be an iterable: %s'%str(value))
+            #if len(value) <= 1:
+            #    raise ValueError('FID data must be an iterable: %s'%str(value))
             if len(value.shape) == 1:
                 value = np.array([value])
             self._data = value
@@ -142,13 +142,13 @@ class FID_array(object):
 		self.data = np.array(dz)
 
 
-	def emhz(self,lb=10.0):
+	def emhz(self, lb=10.0):
 		"""Apply exponential line-broadening.
 		
                 lb -- degree of line-broadening in Hz.
 		
 		"""
-		if len(self.data.shape) == 2: self.data = np.exp(-np.pi*np.arange(len(self.data[0]))*(lb/self.params['sw_hz']))*self.data
+		self.data = np.exp(-np.pi*np.arange(len(self.data[0]))*(lb/self.params['sw_hz']))*self.data
 
 	def ft(self):
 		"""Fourier Transform the FID array.
