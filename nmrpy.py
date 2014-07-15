@@ -467,7 +467,7 @@ class FID_array(object):
                     self.data = np.array(dph)
 		else:		
                     self.data = np.array(dph)*dmax
-	
+                self.phaser = None
 
 
         def phase_auto(self, method='area', thresh=0.0, mp=True, discard_imaginary=True):
@@ -508,6 +508,9 @@ class FID_array(object):
 
 		phase = leastsq(err_ps, [1.0, 0.0], args=(self.data[n]), maxfev=10000)[0]
 		self.data[n] = self.ps(self.data[n], phase[0], phase[1])
+                for i in range(len(self.data)):
+        	    if abs(self.data[i].min()) > abs(self.data[i].max()):
+                        self.data[i] *= -1
                 print '%i\t%d\t%d'%(n, phase[0], phase[1])
                 return self.data[n]
 
@@ -518,6 +521,9 @@ class FID_array(object):
 
 		phase = leastsq(err_ps, [1.0, 0.0], args=(self.data[n]), maxfev=10000)[0]
 		self.data[n] = self.ps(self.data[n], phase[0], phase[1])
+                for i in range(len(self.data)):
+        	    if abs(self.data[i].min()) > abs(self.data[i].max()):
+                        self.data[i] *= -1
                 print '%i\t%d\t%d'%(n, phase[0], phase[1])
                 return self.data[n]
         
@@ -528,6 +534,9 @@ class FID_array(object):
 			return err 
 		phase = leastsq(err_ps, [1.0, 0.0], args=(self.data[n]), maxfev=10000)[0]
 		self.data[n] = self.ps(self.data[n], phase[0], phase[1])
+                for i in range(len(self.data)):
+        	    if abs(self.data[i].min()) > abs(self.data[i].max()):
+                        self.data[i] *= -1
                 print '%i\t%d\t%d'%(n, phase[0], phase[1])
                 return self.data[n]
 
@@ -574,16 +583,15 @@ class FID_array(object):
 		def err_ps(p0,data):
 			err = self.ps(data,p0[0],p0[1],inv=False).real
 			return np.array([abs(err).sum()]*2)
-		if len(data.shape) == 2:
-			for i in range(data.shape[0]):
-				p0 = [1.0,0.0]
-				phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
-				self.phases.append(phase)
-				data_ph[i] = self.ps(data[i],phase[0],phase[1])
-                                print '%i\t%d\t%d'%(i, phase[0], phase[1])
-				sys.stdout.flush()
-				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
-				#if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
+		for i in range(data.shape[0]):
+			p0 = [1.0,0.0]
+			phase = leastsq(err_ps,p0,args=(data[i]),maxfev=10000)[0]
+			self.phases.append(phase)
+			data_ph[i] = self.ps(data[i],phase[0],phase[1])
+                        print '%i\t%d\t%d'%(i, phase[0], phase[1])
+			sys.stdout.flush()
+			#if data_ph[i].mean() < 0:
+                        #    data_ph[i] = -data_ph[i]	
 		if discard_imaginary:
                     self.data = data_ph.real
                 else:
@@ -694,6 +702,7 @@ class FID_array(object):
 			x = xs[xs>=i[0]]
 			peaks.append(np.array(x[x<=i[1]]))
 		self.peaks = peaks
+                p.picker = None
 
         def deconv(self, gl=None, mp=True):
             """Deconvolute array of spectra (self.data) using specified peak positions (self.peaks) and ranges (self.ranges) by fitting the data with combined Gaussian/Lorentzian functions. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
