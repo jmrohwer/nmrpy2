@@ -658,6 +658,7 @@ class FID_array(object):
 		self.baseliner = Baseliner(data)
 		self.bl_points = np.array(self.baseliner.xs,dtype='int32')
                 self.bl_fit(deg=deg)
+                self.baseliner = None
 
 	def bl_fit(self,deg=2):
 		"""Perform baseline correction by fitting specified baseline points (stored in self.bl_points) with polynomials of specified degree (stored in self.bl_polys) and subtract these polynomials from the respective FIDs.
@@ -702,7 +703,7 @@ class FID_array(object):
 			x = xs[xs>=i[0]]
 			peaks.append(np.array(x[x<=i[1]]))
 		self.peaks = peaks
-                p.picker = None
+                self.picker = None
 
         def deconv(self, gl=None, mp=True):
             """Deconvolute array of spectra (self.data) using specified peak positions (self.peaks) and ranges (self.ranges) by fitting the data with combined Gaussian/Lorentzian functions. Uses the Levenberg-Marquardt least squares algorithm [1] as implemented in SciPy.optimize.leastsq.
