@@ -57,8 +57,6 @@ class FID_array(object):
                 self._procpar = None 
                 self.procpar = procpar 
                 self.filename = path 
-                self.figs = []
-                self.ax = []
                 self._f_extract_proc()
                 self._peaks = None
                 self.peaks = [[]]
@@ -209,7 +207,7 @@ class FID_array(object):
 	
 
 	
-	def plot_array_ppm(self,plotrange=None,index=None,sw_left=None,lw=0.5,amp=0.7,azm=-90,elv=45,bh=0.05,filled=False,plotratio=[1,1],labels=None,fs=10,x_label=r'$\deltaup$ ($^{31}$P), ppm',y_label='min',y_space=None,filename=None):
+	def plot_array_ppm(self, plotrange=None, index=None, sw_left=None, lw=0.5, amp=0.7, azm=-90, elv=45, bh=0.05, filled=False, plotratio=[1,1], labels=None, fs=10, x_label=r'$\deltaup$ ($^{31}$P), ppm', y_label='min', y_space=None, filename=None):
 		"""
 		Plot FID array in 3D using the Matplotlib mplot3d toolkit.
 		
@@ -265,7 +263,7 @@ class FID_array(object):
 		left = np.where(abs(left-ppm)==abs(left-ppm).min())[0][0]
 		right= np.where(abs(right-ppm)==abs(right-ppm).min())[0][0]
 		data_ft = data_ft1.transpose()[left:right].transpose()
-		data_ft = data_ft/data_ft.max()
+		#data_ft = data_ft/data_ft.max()
 		ppm = ppm[left:right].copy()
 		x = np.arange(0,data_ft.shape[1],1)
 		y = np.ones_like(x)
@@ -358,11 +356,9 @@ class FID_array(object):
 		ax_all.set_zlim3d(0, (1/amp)*data_ft.max())
 		ax_all.set_axis_off()
 		if filename is not None: fig_all.savefig(filename,format='pdf')
-		self.figs.append(fig_all)
-		self.ax.append(ax_all)
 		show()
 
-	def plot_fid(self,index=0,sw_left=0,lw=0.7,x_label='ppm',y_label=None,filename=None):
+	def plot_fid(self,index=0,sw_left=0,lw=0.7,x_label='ppm', y_label=None,filename=None):
 		"""Plot an FID.
 		
 		Keyword arguments:
@@ -377,7 +373,7 @@ class FID_array(object):
 		ax1 = fig.add_subplot(111)
 		if len(self.data.shape) == 2:
 			ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(self.data[0]))]
-			ax1.plot(ppm[::-1],self.data[index]/max(self.data[index]),'k',lw=lw)
+		        ax1.plot(ppm[::-1], self.data[index],'k',lw=lw)
 		ax1.invert_xaxis()
 		ax1.set_xlabel(x_label)
 		if y_label is not None:	ax1.set_ylabel(y_label)
@@ -429,7 +425,7 @@ class FID_array(object):
                 show()
 
 	
-	def phase_manual(self,index=0,universal=False,norm=True):
+	def phase_manual(self, index=0, universal=False, norm=False, discard_imaginary=True):
 		"""Instantiate a widget for manual phasing of specified FID.
 		
 		Keyword arguments:
@@ -439,36 +435,34 @@ class FID_array(object):
 		
 		Note: left-click - phase p0, right-click - phase p1.
 		"""
-		dph = []
+                if np.sum(np.iscomplex(self.data) == False) > 0:
+                    print "Cannot perform phase correction on non-imaginary data."
+                    return
+                if norm:
+                    self.data = self.data/self.data.max()
 		self.phases = []
 		if len(self.data.shape) == 2:
 			if universal is False:
 				for data in self.data:
-					dmax = self.data.max()
-					data = data/dmax
 					self.phaser = Phaser(data)
-					#self.phases = self.phaser.phases
-					self.phases.append(self.phaser.phases)
-					#dph.append(self.ps(data,p0=self.phases[-1][0],p1=self.phases[-1][1]))
+					self.phases.append(list(self.phaser.phases))
 			else:
 				data = self.data[index]
-				dmax = data.max()
-				data = data/data.max()
 				self.phaser = Phaser(data)
-				#self.phases = self.phaser.phases
 				self.phases = self.phaser.phases
-				self.phases = [self.phases for i in self.data]
-				#for i in self.data:
-					#dph.append(self.ps(i,p0=self.phases[-1][0],p1=self.phases[-1][1]))
-			dph = [self.ps(i[0],p0=i[1][0],p1=i[1][1]) for i in zip(self.data/dmax,self.phases)]
-		
-		
-		if norm:		
-                    self.data = np.array(dph)
-		else:		
-                    self.data = np.array(dph)*dmax
+				self.phases = [list(self.phases)]*len(self.data)
+                
                 self.phaser = None #this instance must be destroyed to be able to pickle the FID instance for multiprocessing
+                self._phase_all_data_using_phases()
+                if discard_imaginary:
+                    self.real()
+        
+        def real(self):
+            """Discard imaginary component of data."""
+            self.data = np.real(self.data)
 
+        def _phase_all_data_using_phases(self):
+	        self.data = np.array([self.ps(i[0], p0=i[1][0], p1=i[1][1]) for i in zip(self.data, self.phases)])
 
         def phase_auto(self, method='area', thresh=0.0, mp=True, discard_imaginary=True):
             """ Automatically phase array of spectra.
@@ -483,23 +477,29 @@ class FID_array(object):
                 mp     -- multiprocessing, parallelise the phasing process over multiple processors, significantly reduces computation time
                 discard_imaginary -- discards imaginary component of complex values after phasing
             """
+            if np.sum(np.iscomplex(self.data) == False) > 0:
+                print "Cannot perform phase correction on non-imaginary data."
+                return
+
             if method == 'area':
                 if mp:
-                    self._phase_area_mp(discard_imaginary=discard_imaginary)
+                    self._phase_area_mp()
                 else:
-                    self._phase_area(discard_imaginary=discard_imaginary)
+                    self._phase_area()
  
             if method == 'neg':
                 if mp:
-                    self._phase_neg_mp(thresh=thresh, discard_imaginary=discard_imaginary)
+                    self._phase_neg_mp(thresh=thresh, )
                 else:
-                    self._phase_neg(thresh=thresh, discard_imaginary=discard_imaginary)
+                    self._phase_neg(thresh=thresh, )
 
             if method == 'neg_area':
                 if mp:
-                    self._phase_neg_area_mp(thresh=thresh, discard_imaginary=discard_imaginary)
+                    self._phase_neg_area_mp(thresh=thresh, )
                 else:
-                    self._phase_neg_area(thresh=thresh, discard_imaginary=discard_imaginary)
+                    self._phase_neg_area(thresh=thresh, )
+            if discard_imaginary:
+                self.real()
 
         def _phase_area_single(self, n):
 		def err_ps(pars, data):
@@ -545,37 +545,25 @@ class FID_array(object):
         """
         Note that the following function has to use a top-level global function '_unwrap_fid' to parallelise as it is a class method
         """
-        def _phase_area_mp(self, discard_imaginary=True):
+        def _phase_area_mp(self, ):
                 print 'fid\tp0\tp1'
                 proc_pool = Pool()
-                data_ph = np.array(proc_pool.map(_unwrap_fid_area, zip([self]*len(self.data), range(len(self.data)))))
-		if discard_imaginary:
-                    self.data = data_ph.real
-                else:
-                    self.data = data_ph
+                self.data = np.array(proc_pool.map(_unwrap_fid_area, zip([self]*len(self.data), range(len(self.data)))))
 
-        def _phase_neg_mp(self, thresh=0.0, discard_imaginary=True):
+        def _phase_neg_mp(self, thresh=0.0, ):
                 print 'fid\tp0\tp1'
                 self._thresh = thresh
                 proc_pool = Pool()
-                data_ph = np.array(proc_pool.map(_unwrap_fid_neg, zip([self]*len(self.data), range(len(self.data)))))
-		if discard_imaginary:
-                    self.data = data_ph.real
-                else:
-                    self.data = data_ph
+                self.data = np.array(proc_pool.map(_unwrap_fid_neg, zip([self]*len(self.data), range(len(self.data)))))
 
-        def _phase_neg_area_mp(self, thresh=0.0, discard_imaginary=True):
+        def _phase_neg_area_mp(self, thresh=0.0, ):
                 print 'fid\tp0\tp1'
                 self._thresh = thresh
                 proc_pool = Pool()
-                data_ph = np.array(proc_pool.map(_unwrap_fid_neg_area, zip([self]*len(self.data), range(len(self.data)))))
-		if discard_imaginary:
-                    self.data = data_ph.real
-                else:
-                    self.data = data_ph
+                self.data = np.array(proc_pool.map(_unwrap_fid_neg_area, zip([self]*len(self.data), range(len(self.data)))))
 
 
-	def _phase_area(self, discard_imaginary=True):
+	def _phase_area(self, ):
                 print 'fid\tp0\tp1'
 		data = self.data
 		data_ph = np.ones_like(data)
@@ -592,12 +580,8 @@ class FID_array(object):
 			sys.stdout.flush()
 			#if data_ph[i].mean() < 0:
                         #    data_ph[i] = -data_ph[i]	
-		if discard_imaginary:
-                    self.data = data_ph.real
-                else:
-                    self.data = data_ph
 
-	def _phase_neg(self, thresh=0.0, discard_imaginary=True):
+	def _phase_neg(self, thresh=0.0, ):
                 print 'fid\tp0\tp1'
 		data = self.data
 		data_ph = np.ones_like(data)
@@ -614,12 +598,8 @@ class FID_array(object):
                                 print '%i\t%d\t%d'%(i, phase[0], phase[1])
 				sys.stdout.flush()
 				if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
-		if discard_imaginary:
-                    self.data = data_ph.real
-                else:
-                    self.data = data_ph
 
-	def _phase_neg_area(self, thresh=0.0, discard_imaginary=True):
+	def _phase_neg_area(self, thresh=0.0, ):
                 print 'fid\tp0\tp1'
 		data = self.data
 		data_ph = np.ones_like(data)
@@ -638,10 +618,6 @@ class FID_array(object):
 				sys.stdout.flush()
 				#if data_ph[i].mean() < 0:	data_ph[i] = -data_ph[i]	
 				if abs(data_ph[i].min()) > abs(data_ph[i].max()):	data_ph[i] = -data_ph[i]
-		if discard_imaginary:
-                    self.data = data_ph.real
-                else:
-                    self.data = data_ph
 
 
 
@@ -1015,8 +991,10 @@ class FID_array(object):
         	p0 = p0*np.pi/180. # convert to radians
         	p1 = p1*np.pi/180. 
         	#size = data.shape[-1]
-        	if len(data.shape)==2:	size = len(data[0])#data.shape[-1]
-        	if len(data.shape)==1:	size = len(data)#.shape[0]
+        	if len(data.shape)==2:	
+                    size = float(len(data[0]))
+        	if len(data.shape)==1:	
+                    size = float(len(data))
         	ph = np.exp(1.0j*(p0+(p1*np.arange(size)/size)))
 	        return ph*data
 
@@ -1226,15 +1204,15 @@ class Baseliner(object):
 		return False
 
 class Phaser(object):
-	def __init__(self,data):#,index=0):#, data):
+	def __init__(self, data):
                 self.ps = FID_array.ps
 		fig = figure(figsize=[15,6])
-		self.data = data
-		self.datanew = data
+		self.data = data.copy()
+		self.datanew = data.copy()
 		self.phases = np.array([0.,0.],dtype='f')
 		self.y = 0
 		self.ax = fig.add_subplot(111)
-		self.ax.plot(self.datanew,color='#3D3D99',linewidth=0.5)
+		self.ax.plot(self.datanew,color='#3D3D99',linewidth=1.0)
 		self.ax.hlines(0,0,len(self.datanew)-1)
 		self.visible = True
 		self.canvas = self.ax.figure.canvas
@@ -1245,10 +1223,9 @@ class Phaser(object):
 		self.buttonDown = False
 		self.prev = (0, 0)
 		self.ranges = []
-		self.ax.set_ylim([-0.5,1.2])
+		#self.ax.set_ylim([-0.5,1.2])
 		self.ax.set_xlim([0,len(self.data)])
 		self.ax.text(0.05*self.ax.get_xlim()[1],0.8*self.ax.get_ylim()[1],'phasing\nleft - zero-order\nright - first order')
-		self.ylims = [self.ax.get_ylim()[0],self.ax.get_ylim()[1]+abs(self.ax.get_ylim()[0])]
 		cursor = Cursor(self.ax, useblit=True,color='k', linewidth=0.5 )
 		cursor.horizOn = False
 		show()
@@ -1257,8 +1234,7 @@ class Phaser(object):
 	def press(self, event):
 		tb = get_current_fig_manager().toolbar
 		if tb.mode == '':
-			x,y = event.xdata,event.ydata
-			y = y*100
+			x,y = event.xdata, event.ydata
 			if event.inaxes is not None:
 				self.buttonDown = True
 				self.button = event.button
@@ -1274,13 +1250,12 @@ class Phaser(object):
 		if self.buttonDown is False or event.inaxes is None: return
 		x = event.xdata
 		y = event.ydata
-		y = y*100
 		dy = y-self.y
 		self.y = y
 		if self.button == 1:
-			self.phases[0] = self.phases[0] + dy
+			self.phases[0] = self.phases[0] + 50*dy/self.ax.get_ylim()[1]
 		if self.button == 3:
-			self.phases[1] = self.phases[1] + dy
+			self.phases[1] = self.phases[1] + 50*dy/self.ax.get_ylim()[1]
 		self.datanew = self.ps(self.data,p0=self.phases[0],p1=self.phases[1])
 		self.ax.lines[0].set_data(np.array([np.arange(len(self.datanew)),self.datanew]))
 		self.canvas.draw()#_idle()
