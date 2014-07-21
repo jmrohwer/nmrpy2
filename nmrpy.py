@@ -377,11 +377,12 @@ class FID_array(object):
 
 		#labelling ------------------
 		if labels:
+                    lbl_gap = ax1.get_ylim()[1]
 		    for i in labels:
 			if ppm[0]<labels[i]<ppm[-1]:
 				xlbl = len(self.data[index])-np.where(abs(labels[i]-ppm)==abs(labels[i]-ppm).min())[0][0]
-				#ax1.plot((xlbl,xlbl),(acqtime[-1],acqtime[-1]),(data_ft[-1][xlbl]+0.1,data_ft[-1][xlbl]+0.2),'k',linewidth=1)
-				ax1.text(labels[i], self.data[index][xlbl]*1.5, i, ha='center')
+                                ax1.plot((labels[i], labels[i]), (self.data[index][xlbl]+0.02*lbl_gap, self.data[index][xlbl]+0.05*lbl_gap), color='0.5')
+				ax1.text(labels[i], self.data[index][xlbl]+0.07*lbl_gap, i, ha='center')
 		#----------------------------
 		ax1.invert_xaxis()
 		ax1.set_xlabel(x_label)
@@ -678,7 +679,7 @@ class FID_array(object):
 		"""
 		if len(self.data.shape) == 2: 
 			data = self.data[index]
-		self.picker = SpanSelector(data/data.max())#self.data[index])
+		self.picker = SpanSelector(data)#/data.max())#self.data[index])
 		self.ranges = self.picker.ranges
 		xs = list(Counter(self.picker.peaks))
 		xs = np.array(xs)
@@ -1275,7 +1276,7 @@ class Phaser(object):
 class SpanSelector:
 	def __init__(self, data):
 		fig = figure(figsize=[15,6])
-		self.data = data#/data.max()
+		self.data = data
 		self.ax = fig.add_subplot(111)
 		self.ax.plot(self.data,color='#3D3D99',linewidth=0.5)
 		self.rectprops = dict(facecolor='0.5', alpha=0.2)
