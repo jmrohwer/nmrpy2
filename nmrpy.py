@@ -358,7 +358,7 @@ class FID_array(object):
 		if filename is not None: fig_all.savefig(filename,format='pdf')
 		show()
 
-	def plot_fid(self,index=0,sw_left=0,lw=0.7,x_label='ppm', y_label=None,filename=None):
+	def plot_fid(self,index=0,sw_left=0,lw=0.7,x_label='ppm', y_label=None, labels = None, filename=None):
 		"""Plot an FID.
 		
 		Keyword arguments:
@@ -374,6 +374,15 @@ class FID_array(object):
 		if len(self.data.shape) == 2:
 			ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(self.data[0]))]
 		        ax1.plot(ppm[::-1], self.data[index],'k',lw=lw)
+
+		#labelling ------------------
+		if labels:
+		    for i in labels:
+			if ppm[0]<labels[i]<ppm[-1]:
+				xlbl = len(self.data[index])-np.where(abs(labels[i]-ppm)==abs(labels[i]-ppm).min())[0][0]
+				#ax1.plot((xlbl,xlbl),(acqtime[-1],acqtime[-1]),(data_ft[-1][xlbl]+0.1,data_ft[-1][xlbl]+0.2),'k',linewidth=1)
+				ax1.text(labels[i], self.data[index][xlbl]*1.5, i, ha='center')
+		#----------------------------
 		ax1.invert_xaxis()
 		ax1.set_xlabel(x_label)
 		if y_label is not None:	ax1.set_ylabel(y_label)
@@ -1223,7 +1232,8 @@ class Phaser(object):
 		self.buttonDown = False
 		self.prev = (0, 0)
 		self.ranges = []
-		#self.ax.set_ylim([-0.5,1.2])
+                ylims = np.array([-1,1])*np.array([max(self.ax.get_ylim())]*2)
+		self.ax.set_ylim(ylims)
 		self.ax.set_xlim([0,len(self.data)])
 		self.ax.text(0.05*self.ax.get_xlim()[1],0.8*self.ax.get_ylim()[1],'phasing\nleft - zero-order\nright - first order')
 		cursor = Cursor(self.ax, useblit=True,color='k', linewidth=0.5 )
