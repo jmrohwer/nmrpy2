@@ -358,11 +358,11 @@ class FID_array(object):
 		if filename is not None: fig_all.savefig(filename,format='pdf')
 		show()
 
-	def plot_fid(self,index=0,sw_left=0,lw=0.7,x_label='ppm', y_label=None, labels = None, filename=None):
+	def plot_fid(self,index=0,sw_left=0,lw=0.7,x_label='ppm', y_label=None, labels=None, label_distance_frac=0.07, filename=None):
 		"""Plot an FID.
 		
 		Keyword arguments:
-		index -- index of FID array to plot
+		index -- index of FID array to plot, can be an integer or a list
 		sw_left -- upfield boundary of spectral width
 		lw -- plot linewidth
 		x_label -- x-axis label
@@ -373,16 +373,22 @@ class FID_array(object):
 		ax1 = fig.add_subplot(111)
 		if len(self.data.shape) == 2:
 			ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(self.data[0]))]
-		        ax1.plot(ppm[::-1], self.data[index],'k',lw=lw)
+                        if type(index) == int:
+        		    ax1.plot(ppm[::-1], self.data[index],'k',lw=lw)
+                        if type(index) == list:
+                            label_index = index[0]
+                            cl = cm.RdBu_r(np.linspace(0,1,len(index)))
+                            for i in np.arange(len(index))[::-1]: 
+        		        ax1.plot(ppm[::-1], self.data[index[i]], color=cl[i], lw=lw)
 
 		#labelling ------------------
 		if labels:
                     lbl_gap = ax1.get_ylim()[1]
 		    for i in labels:
 			if ppm[0]<labels[i]<ppm[-1]:
-				xlbl = len(self.data[index])-np.where(abs(labels[i]-ppm)==abs(labels[i]-ppm).min())[0][0]
-                                ax1.plot((labels[i], labels[i]), (self.data[index][xlbl]+0.02*lbl_gap, self.data[index][xlbl]+0.05*lbl_gap), color='0.5')
-				ax1.text(labels[i], self.data[index][xlbl]+0.07*lbl_gap, i, ha='center')
+				xlbl = len(self.data[label_index])-np.where(abs(labels[i]-ppm)==abs(labels[i]-ppm).min())[0][0]
+                                ax1.plot((labels[i], labels[i]), (self.data[label_index][xlbl]+label_distance_frac/3.0*lbl_gap, self.data[label_index][xlbl]+2/3.*label_distance_frac*lbl_gap), color='0.5')
+				ax1.text(labels[i], self.data[label_index][xlbl]+label_distance_frac*lbl_gap, i, ha='center')
 		#----------------------------
 		ax1.invert_xaxis()
 		ax1.set_xlabel(x_label)
