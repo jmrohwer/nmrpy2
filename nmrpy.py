@@ -144,6 +144,7 @@ class FID_array(object):
 		nt = self._procpar['NS']
 		sw_hz = self._procpar['SW_h']
                 sw = self._procpar['SW']
+                sw_left = 0
 		at = self._procpar['TD']/(2*sw_hz) 
 		rt = at+d1
 		acqtime = (nt*rt)/60. #convert to mins.
@@ -154,6 +155,7 @@ class FID_array(object):
                     rt=rt,
                     nt=nt,
                     acqtime=acqtime,
+                    sw_left=sw_left,
                     sw=sw,
                     sw_hz=sw_hz)
 		self.t = np.array([acqtime]*len(self.data))
