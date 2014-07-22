@@ -745,7 +745,7 @@ class FID_array(object):
 		"""
 		if len(self.data.shape) == 2: 
 			data = self.data[index]
-		self.picker = SpanSelector(data)
+		self.picker = SpanSelector(data, self.params)
 		self.ranges = self.picker.ranges
 		xs = list(Counter(self.picker.peaks))
 		xs = np.array(xs)
@@ -1355,11 +1355,12 @@ class Phaser(object):
 		return False
 
 class SpanSelector:
-	def __init__(self, data):
+	def __init__(self, data, params):
 		fig = figure(figsize=[15,6])
 		self.data = data
 		self.ax = fig.add_subplot(111)
-		self.ax.plot(self.data,color='#3D3D99',linewidth=0.5)
+		ppm = np.mgrid[params['sw_left']-params['sw']:params['sw_left']:complex(len(data))]
+                self.ax.plot(ppm[::-1], data, color='#3D3D99', lw=1)
 		self.rectprops = dict(facecolor='0.5', alpha=0.2)
 		self.visible = True
 		self.canvas = self.ax.figure.canvas
@@ -1384,7 +1385,7 @@ class SpanSelector:
 		self.ylims = np.array([self.ax.get_ylim()[0],self.data.max()+abs(self.ax.get_ylim()[0])])
 		self.ax.set_ylim([self.ax.get_ylim()[0],self.data.max()*1.1])
 		self.ax_lims = self.ax.get_ylim()
-		self.ax.set_xlim([0,len(self.data)])
+		self.ax.set_xlim([ppm[-1], ppm[0]])
 		self.ax.text(0.05*self.ax.get_xlim()[1],0.8*self.ax.get_ylim()[1],'Peak picking\nleft - select peak\ndrag right - select range')
 		cursor = Cursor(self.ax, useblit=True,color='k', linewidth=0.5 )
 		cursor.horizOn = False
@@ -1403,9 +1404,9 @@ class SpanSelector:
 			if event.button == 1 and (x >= 0) and (x<=len(self.data)-1):
 				self.peaks.append(x)
 				self.ax.plot([x,x],self.ax_lims,color='#CC0000',lw=0.5)
-				print round(x)
+				print round(x,3)
 				sys.stdout.flush()
-				self.peaks.sort()
+				self.peaks = sorted(self.peaks)[::-1]
 			self.canvas.draw()
 
 	def release(self, event):
