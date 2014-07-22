@@ -105,21 +105,23 @@ class FID_array(object):
             value = [np.array(i) for i in value]
             self._peaks = value
 
+        def shift_sw(self, shift):
+            self.params['sw_left'] += shift
 	
 	def _f_extract_proc_varian(self):
 		"""Extract NMR parameters (using Varian denotations) and create a parameter dictionary 'params'."""
-		at = float(self._procpar['procpar']['at']['values'][0])
-		d1 = float(self._procpar['procpar']['d1']['values'][0])
+		at      = float(self._procpar['procpar']['at']['values'][0])
+		d1      = float(self._procpar['procpar']['d1']['values'][0])
 		sfrq    = float(self._procpar['procpar']['sfrq']['values'][0])
 		reffrq  = float(self._procpar['procpar']['reffrq']['values'][0])
 		rfp     = float(self._procpar['procpar']['rfp']['values'][0])
 		rfl     = float(self._procpar['procpar']['rfl']['values'][0])
 		tof     = float(self._procpar['procpar']['tof']['values'][0])
-		rt = at+d1
-		nt = np.array([self._procpar['procpar']['nt']['values']],dtype=float)
+		rt      = at+d1
+		nt      = np.array([self._procpar['procpar']['nt']['values']],dtype=float)
 		acqtime = (nt*rt).cumsum()/60. #convert to mins.
-		sw = round(float(self._procpar['procpar']['sw']['values'][0])/float(self._procpar['procpar']['sfrq']['values'][0]),2)
-		sw_hz = float(self._procpar['procpar']['sw']['values'][0])
+		sw      = round(float(self._procpar['procpar']['sw']['values'][0])/float(self._procpar['procpar']['sfrq']['values'][0]),2)
+		sw_hz   = float(self._procpar['procpar']['sw']['values'][0])
                 sw_left = (0.5+1e6*(sfrq-reffrq)/sw_hz)*sw_hz/sfrq
 		self.params = dict(
                     at=at,
