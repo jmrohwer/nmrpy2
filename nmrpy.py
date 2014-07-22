@@ -67,7 +67,7 @@ class FID_array(object):
                     self._f_extract_proc_varian()
                 if bruker:
                     self._f_extract_proc_bruker()
-                    self.data = self.data[:,::-1]
+                    #self.data = self.data[:,::-1]
                 self._peaks = None
                 self.peaks = [[]]
 
@@ -203,7 +203,10 @@ class FID_array(object):
 		"""
 		data =  np.array(np.fft.fft(self.data),dtype=self.data.dtype)
 		s = data.shape[-1]
-		self.data = np.append(data[...,int(s/2)::-1],data[...,s:int(s/2):-1],axis=-1)[...,::-1]
+                if self._varian:
+        	    self.data = np.append(data[:,int(s/2.0)::-1], data[:,s:int(s/2.0):-1], axis=1)[:,::-1]
+                if self._bruker:
+        	    self.data = np.append(data[:,int(s/2.0)::-1], data[:,s:int(s/2.0):-1], axis=1)
 
 		
 	def savefids(self,filename=None):
