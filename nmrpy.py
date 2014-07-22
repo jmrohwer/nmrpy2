@@ -1361,6 +1361,7 @@ class SpanSelector:
 		self.ax = fig.add_subplot(111)
 		ppm = np.mgrid[params['sw_left']-params['sw']:params['sw_left']:complex(len(data))]
                 self.ax.plot(ppm[::-1], data, color='#3D3D99', lw=1)
+                self.ax.set_xlabel('ppm')
 		self.rectprops = dict(facecolor='0.5', alpha=0.2)
 		self.visible = True
 		self.canvas = self.ax.figure.canvas
