@@ -411,17 +411,26 @@ class FID_array(object):
 		if filename is not None: fig_all.savefig(filename,format='pdf')
 		show()
 
-	def plot_fid(self,index=0, sw_left=None, lw=0.7,x_label='ppm', y_label=None, labels=None, label_distance_frac=0.07, filename=None):
+	def plot_fid(self,index=0, sw_left=None, lw=0.7,x_label='ppm', y_label=None, labels='peaks', label_distance_frac=0.07, filename=None):
 		"""Plot an FID.
 		
 		Keyword arguments:
-		index -- index of FID array to plot, can be an integer or a list
+		index -- index of FID array to plot, can be an integer or a list or simply 'all'
 		sw_left -- upfield boundary of spectral width
 		lw -- plot linewidth
 		x_label -- x-axis label
 		y_label -- y-axis label
+                lables -- a dictionary of peak labels of the form: {'name': ppm, ... }, or simply 'peaks' to plot the stored peak values, or None
 		filename -- save file to filename (default 'None' will not save)
 		"""
+                if index == 'all':
+                    index = range(len(self.data))
+                if labels == 'peaks':
+                    if len(self.peaks[0]) > 0:
+                        peaks = [round(j, 3) for i in self.peaks for j in i]
+                        labels = dict(zip([str(i) for i in peaks], peaks))
+                    else:
+                        labels = {}
                 if not sw_left:
                     sw_left = self.params['sw_left']
 		fig = figure(figsize=[15,6])
@@ -445,6 +454,7 @@ class FID_array(object):
                                 ax1.plot((labels[i], labels[i]), (self.data[label_index][xlbl]+label_distance_frac/3.0*lbl_gap, self.data[label_index][xlbl]+2/3.*label_distance_frac*lbl_gap), color='0.5')
 				ax1.text(labels[i], self.data[label_index][xlbl]+label_distance_frac*lbl_gap, i, ha='center')
 		#----------------------------
+                ax1.set_xlim([ppm[-1], ppm[0]])
 		ax1.invert_xaxis()
 		ax1.set_xlabel(x_label)
 		if y_label is not None:	ax1.set_ylabel(y_label)
