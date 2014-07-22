@@ -41,23 +41,33 @@ fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'],'weight' : 'n
 
 
 
-def fid_from_path(path=None):
+def fid_from_path(path=None, varian=False, bruker=False):
         """ imports and creates a Varian (Agilent) FID and returns an FID_array instance. """
         if path:
-            procpar, data = ng.varian.read(path)
-            fid = FID_array(data=data, procpar=procpar, path=path)
+            if varian:
+                procpar, data = ng.varian.read(path)
+            if bruker:
+                procpar, data = ng.bruker.read(path)
+                procpar = procpar['acqus']
+            fid = FID_array(data=data, procpar=procpar, path=path, varian=varian, bruker=bruker)
             return fid
 
 
 class FID_array(object):
-	def __init__(self, data=None, procpar=None, path=None):
+	def __init__(self, data=None, procpar=None, path=None, varian=False, bruker=False):
                 """Instantiate the FID class."""
                 self._data = None 
                 self.data = data
                 self._procpar = None 
                 self.procpar = procpar 
                 self.filename = path 
-                self._f_extract_proc()
+                self._varian = varian
+                self._bruker = bruker
+                if varian:
+                    self._f_extract_proc_varian()
+                if bruker:
+                    self._f_extract_proc_bruker()
+                    self.data = self.data[:,::-1]
                 self._peaks = None
                 self.peaks = [[]]
 
@@ -81,9 +91,9 @@ class FID_array(object):
         @procpar.setter
         def procpar(self, value):
             if not value:
-                raise ValueError('Procpar cannot be empty.')
+                raise ValueError('Parameter dictionary cannot be empty.')
             if type(value) != dict:
-                raise ValueError('Procpar must be a dictionary, not type %s.'%type(value).__name__)
+                raise ValueError('Paramters must be in a dictionary object, not type %s.'%type(value).__name__)
             self._procpar = value
 
         @property
@@ -96,15 +106,21 @@ class FID_array(object):
             self._peaks = value
 
 	
-	def _f_extract_proc(self):
+	def _f_extract_proc_varian(self):
 		"""Extract NMR parameters (using Varian denotations) and create a parameter dictionary 'params'."""
 		at = float(self._procpar['procpar']['at']['values'][0])
 		d1 = float(self._procpar['procpar']['d1']['values'][0])
+		sfrq    = float(self._procpar['procpar']['sfrq']['values'][0])
+		reffrq  = float(self._procpar['procpar']['reffrq']['values'][0])
+		rfp     = float(self._procpar['procpar']['rfp']['values'][0])
+		rfl     = float(self._procpar['procpar']['rfl']['values'][0])
+		tof     = float(self._procpar['procpar']['tof']['values'][0])
 		rt = at+d1
 		nt = np.array([self._procpar['procpar']['nt']['values']],dtype=float)
 		acqtime = (nt*rt).cumsum()/60. #convert to mins.
-		sw = round(float(self._procpar['procpar']['sw']['values'][0])/float(self._procpar['procpar']['reffrq']['values'][0]),2)
+		sw = round(float(self._procpar['procpar']['sw']['values'][0])/float(self._procpar['procpar']['sfrq']['values'][0]),2)
 		sw_hz = float(self._procpar['procpar']['sw']['values'][0])
+                sw_left = (0.5+1e6*(sfrq-reffrq)/sw_hz)*sw_hz/sfrq
 		self.params = dict(
                     at=at,
                     d1=d1,
@@ -112,8 +128,35 @@ class FID_array(object):
                     nt=nt,
                     acqtime=acqtime,
                     sw=sw,
-                    sw_hz=sw_hz)
+                    sw_hz=sw_hz,
+                    sfrq=sfrq,
+                    reffrq=reffrq,
+                    rfp=rfp,
+                    rfl=rfl,
+                    tof=tof,
+                    sw_left=sw_left)
 		self.t = acqtime[:len(self.data)]
+
+	def _f_extract_proc_bruker(self):
+		"""Extract NMR parameters (using Varian denotations) and create a parameter dictionary 'params'."""
+		d1 = self._procpar['RD']
+		sfrq    = self._procpar['SFO1']
+		nt = self._procpar['NS']
+		sw_hz = self._procpar['SW_h']
+                sw = self._procpar['SW']
+		at = self._procpar['TD']/(2*sw_hz) 
+		rt = at+d1
+		acqtime = (nt*rt)/60. #convert to mins.
+		self.params = dict(
+                    at=at,
+                    d1=d1,
+                    sfrq=sfrq,
+                    rt=rt,
+                    nt=nt,
+                    acqtime=acqtime,
+                    sw=sw,
+                    sw_hz=sw_hz)
+		self.t = np.array([acqtime]*len(self.data))
 
 	def zf_2(self):
 		"""Apply a single degree of zero-filling.
@@ -358,7 +401,7 @@ class FID_array(object):
 		if filename is not None: fig_all.savefig(filename,format='pdf')
 		show()
 
-	def plot_fid(self,index=0,sw_left=0,lw=0.7,x_label='ppm', y_label=None, labels=None, label_distance_frac=0.07, filename=None):
+	def plot_fid(self,index=0, sw_left=None, lw=0.7,x_label='ppm', y_label=None, labels=None, label_distance_frac=0.07, filename=None):
 		"""Plot an FID.
 		
 		Keyword arguments:
@@ -369,6 +412,8 @@ class FID_array(object):
 		y_label -- y-axis label
 		filename -- save file to filename (default 'None' will not save)
 		"""
+                if not sw_left:
+                    sw_left = self.params['sw_left']
 		fig = figure(figsize=[15,6])
 		ax1 = fig.add_subplot(111)
 		if len(self.data.shape) == 2:
