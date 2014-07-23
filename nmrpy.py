@@ -7,7 +7,6 @@ from scipy.optimize import leastsq
 from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import LSQUnivariateSpline
 from multiprocessing import cpu_count, Pool
-from collections import Counter
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 from matplotlib import patches, rc
@@ -758,8 +757,7 @@ class FID_array(object):
 		self.ranges = self.picker.ranges
                 if self.ranges == []:
                     self.ranges = [[self.params['sw_left']-self.params['sw'], self.params['sw_left']]]
-		xs = list(Counter(self.picker.peaks))
-		xs = np.array(xs)
+		xs = np.array(self.picker.peaks)
 		xs.sort()
 		peaks = []
 		for i in self.ranges:
