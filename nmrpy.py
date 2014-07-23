@@ -796,10 +796,14 @@ class FID_array(object):
 		
 		[1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
             """
+            self._convert_peaklist_to_index()
+            self.data = self.data[:, ::-1]
             if mp:
                 self._deconv_mp(gl=gl)
             else:
                 self._deconv(gl=gl)
+            self._convert_peaklist_to_ppm()
+            self.data = self.data[:, ::-1]
 
         def _deconv_single(self, n):
             fit = []
@@ -811,7 +815,7 @@ class FID_array(object):
 		f[0] += j[1][0]
 		f = f.transpose()
 		fit.append(f)
-	    print 'fit %i/%i'%(n, len(self.data))
+	    print 'fit %i/%i'%(n+1, len(self.data))
 	    integrals = f_integrals(self.data[n], fit)
             return fit, integrals
 
@@ -846,7 +850,7 @@ class FID_array(object):
 			self.integrals = f_integrals_array(self.data,self.fits)
 
 
-	def plot_deconv(self,index=0,txt=True,sw_left=0,x_label='ppm', filename=None):
+	def plot_deconv(self, index=0, txt=True, sw_left=None, x_label='ppm', filename=None):
 		"""Generate a plot of data with fitted peaks.
 		
 		Keyword arguments:
@@ -860,13 +864,15 @@ class FID_array(object):
 		Plot of data (black), fitted Gaussian/Lorentzian peakshapes (blue), residual (red).
 		
 		"""
+                
+                if sw_left == None:
+                    sw_left = self.params['sw_left']
 
-		if len(self.data.shape)==2:	
-			data = self.data[index]
-			paramarray = self.fits[index]
+		data = self.data[index][::-1]
+		paramarray = self.fits[index]
 		
 		def i2ppm(index_value):
-			return np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(data))][::-1][index_value]
+			return np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(data))][index_value]
 		
 		def peaknum(paramarray,peak):
 			pkr = []
@@ -875,31 +881,34 @@ class FID_array(object):
 					pkr.append(np.array(j-peak).sum())
 			return np.where(np.array(pkr)==0.)[0][0]
 		cl = ['#336699','#999966','#990000']
-		fig = figure(figsize=[8,4])
-		ax = fig.add_subplot(111)
 		x = np.arange(len(data))
+		ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(x))]#[::-1]
+		fig = figure(figsize=[15,6])
+		ax = fig.add_subplot(111)
 		peakplots = 0
 		for irange in paramarray:
 			for ipeak in irange:
 				pk = f_pk(ipeak,x)
-				ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(x))][::-1]
-				ax.plot(ppm, pk/max(data), color='0.5', linewidth=1)
+				#ax.plot(ppm, pk/max(data), color='0.5', linewidth=1)
+				ax.plot(ppm, pk, color='0.5', linewidth=1)
 				if txt:	
-                                    text(i2ppm(int(ipeak[0])), 0.1+pk.max()/max(data), str(peaknum(paramarray,ipeak)), color='#336699')
+                                    text(i2ppm(int(ipeak[0])), 0.1+pk.max(), str(peaknum(paramarray,ipeak)), color='#336699')
 				peakplots += f_pk(ipeak,x)
 
                 #these plots are all normalised
-		ax.plot(ppm,(data-peakplots)/max(data), color=cl[2], linewidth=1)
-		ax.plot(ppm,data/max(data), color='k', linewidth=1)	
-		ax.plot(ppm,peakplots/max(data), '-', color=cl[0], linewidth=1)
+		ax.plot(ppm,(data-peakplots), color=cl[2], linewidth=1)
+		ax.plot(ppm,data, color='k', linewidth=1)	
+		ax.plot(ppm,peakplots, '-', color=cl[0], linewidth=1)
 		ax.invert_xaxis()
 		ax.set_xlabel(x_label)
+                ax.set_xlim([ppm[-1], ppm[0]])
 		box1 = ax.get_position()
 		ax.set_position([box1.x0, box1.y0+0.05*box1.height, box1.width, box1.height * 0.95])
 		while ax.get_yticks()[0] < 0.0:	
 			ax.set_yticks(ax.get_yticks()[1:])
 		if filename is not None: fig_all.savefig(filename,format='pdf')
 		show()
+                 
 
 	def integrate(self,index=None,ranges=None):
 		"""
@@ -1424,7 +1433,7 @@ class SpanSelector:
 	def press(self, event):
 		tb = get_current_fig_manager().toolbar
 		if tb.mode == '':
-			x = event.xdata
+			x = round(event.xdata, 3)
 			if event.button == 2:
 				self.peaks = self.peaks[:-1]
 				self.ax.lines = self.ax.lines[:-1]
@@ -1434,7 +1443,7 @@ class SpanSelector:
 			if event.button == 1 and (x >= self.xlims[1]) and (x <= self.xlims[0]):
 				self.peaks.append(x)
 				self.ax.plot([x,x],self.ax_lims,color='#CC0000',lw=0.5)
-				print round(x,3)
+				print x
 				self.peaks = sorted(self.peaks)[::-1]
 			self.canvas.draw()
 
@@ -1454,7 +1463,7 @@ class SpanSelector:
 				if (vmin>=i[0]) and (vmin<=i[1]): spantest = True
 				if (vmax>=i[0]) and (vmax<=i[1]): spantest = True
 		if span > self.minspan and spantest is False:
-			self.ranges.append([vmin,vmax])
+			self.ranges.append([round(vmin,3), round(vmax,3)])
 			self.ax.bar(left=vmin,height=sum(abs(self.ylims)),width=span,bottom=self.ylims[0],alpha=0.2,color='0.5',edgecolor='k')
 		self.canvas.draw()
 		self.ranges.sort()
