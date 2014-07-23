@@ -1252,7 +1252,7 @@ class Baseliner(object):
 		self.data = data
 		self.x = np.array([])
 		self.ax = fig.add_subplot(111)
-		self.ax.plot(self.data,color='#3D3D99',linewidth=0.5)
+		self.ax.plot(self.data,color='0.3',lw=1)
 		self.xs = [0,len(self.data)-1]
 		self.ax.plot(self.xs,self.data[np.array(self.xs)],'o',color='#CC0000')
 		self.ax.hlines(0,0,len(self.data)-1)
@@ -1313,7 +1313,7 @@ class Phaser(object):
 		self.phases = np.array([0.,0.],dtype='f')
 		self.y = 0
 		self.ax = fig.add_subplot(111)
-		self.ax.plot(self.datanew,color='#3D3D99',linewidth=1.0)
+		self.ax.plot(self.datanew,color='0.3',linewidth=1.0)
 		self.ax.hlines(0,0,len(self.datanew)-1)
 		self.visible = True
 		self.canvas = self.ax.figure.canvas
@@ -1370,7 +1370,7 @@ class SpanSelector:
 		self.data = data
 		self.ax = fig.add_subplot(111)
 		ppm = np.mgrid[params['sw_left']-params['sw']:params['sw_left']:complex(len(data))]
-                self.ax.plot(ppm[::-1], data, color='#3D3D99', lw=1)
+                self.ax.plot(ppm[::-1], data, color='0.3', lw=1)#color='#3D3D99', lw=1)
                 self.ax.set_xlabel('ppm')
 		self.rectprops = dict(facecolor='0.5', alpha=0.2)
 		self.visible = True
