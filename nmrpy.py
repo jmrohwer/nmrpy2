@@ -455,7 +455,6 @@ class FID_array(object):
 				ax1.text(labels[i], self.data[label_index][xlbl]+label_distance_frac*lbl_gap, i, ha='center')
 		#----------------------------
                 ax1.set_xlim([ppm[-1], ppm[0]])
-		ax1.invert_xaxis()
 		ax1.set_xlabel(x_label)
 		if y_label is not None:	ax1.set_ylabel(y_label)
 		if filename is not None: fig.savefig(filename,format='pdf')
@@ -753,10 +752,11 @@ class FID_array(object):
 		
 		Note: left-click - select a point, right-click - begin a dragging selection of a fitting range. Only peaks included in selected fitting ranges will be retained.
 		"""
-		if len(self.data.shape) == 2: 
-			data = self.data[index]
+		data = self.data[index]
 		self.picker = SpanSelector(data, self.params)
 		self.ranges = self.picker.ranges
+                if self.ranges == []:
+                    self.ranges = [[self.params['sw_left']-self.params['sw'], self.params['sw_left']]]
 		xs = list(Counter(self.picker.peaks))
 		xs = np.array(xs)
 		xs.sort()
@@ -1396,8 +1396,9 @@ class SpanSelector:
 		self.ylims = np.array([self.ax.get_ylim()[0],self.data.max()+abs(self.ax.get_ylim()[0])])
 		self.ax.set_ylim([self.ax.get_ylim()[0],self.data.max()*1.1])
 		self.ax_lims = self.ax.get_ylim()
-		self.ax.set_xlim([ppm[-1], ppm[0]])
-		self.ax.text(0.05*self.ax.get_xlim()[1],0.8*self.ax.get_ylim()[1],'Peak picking\nleft - select peak\ndrag right - select range')
+                self.xlims = [ppm[-1], ppm[0]]
+		self.ax.set_xlim(self.xlims)
+		self.ax.text(0.95*self.ax.get_xlim()[0], 0.7*self.ax.get_ylim()[1],'Peak picking\nLeft - select peak\nMiddle - delete last peak\nDrag Right - select range')
 		cursor = Cursor(self.ax, useblit=True,color='k', linewidth=0.5 )
 		cursor.horizOn = False
 		show()
@@ -1412,16 +1413,16 @@ class SpanSelector:
 			if event.button == 3:
 				self.buttonDown = True
 				self.pressv = event.xdata
-			if event.button == 1 and (x >= 0) and (x<=len(self.data)-1):
+			if event.button == 1 and (x >= self.xlims[1]) and (x <= self.xlims[0]):
 				self.peaks.append(x)
 				self.ax.plot([x,x],self.ax_lims,color='#CC0000',lw=0.5)
 				print round(x,3)
-				sys.stdout.flush()
 				self.peaks = sorted(self.peaks)[::-1]
 			self.canvas.draw()
 
 	def release(self, event):
-		if self.pressv is None or not self.buttonDown: return
+		if self.pressv is None or not self.buttonDown: 
+                    return
 		self.buttonDown = False
 		self.rect.set_visible(False)
 		vmin = self.pressv
@@ -1442,19 +1443,21 @@ class SpanSelector:
 		return False
 
 	def onmove(self, event):
-		if self.pressv is None or self.buttonDown is False or event.inaxes is None: return
-			
+		if self.pressv is None or self.buttonDown is False or event.inaxes is None: 
+                    return
 		self.rect.set_visible(self.visible)
 		x, y = event.xdata, event.ydata
 		self.prev = x, y
 		v = x
 		minv, maxv = v, self.pressv
-		if minv>maxv: minv, maxv = maxv, minv
+		if minv>maxv: 
+                    minv, maxv = maxv, minv
 		self.rect.set_xy([minv,self.rect.xy[1]])
 		self.rect.set_width(maxv-minv)
 		vmin = self.pressv
 		vmax = event.xdata #or self.prev[0]
-		if vmin>vmax: vmin, vmax = vmax, vmin
+		if vmin>vmax: 
+                    vmin, vmax = vmax, vmin
 		self.canvas.draw_idle()
 		return False
 
