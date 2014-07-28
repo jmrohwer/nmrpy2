@@ -160,7 +160,7 @@ class FID_array(object):
 		self.t = np.array([acqtime]*len(self.data))
 
         def ui(self):
-                fplot = MainWindow(self)
+                fplot = DataPlotter(self)
                 fplot.configure_traits()
 
 	def zf_2(self):
