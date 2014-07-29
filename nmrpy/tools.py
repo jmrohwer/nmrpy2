@@ -4,7 +4,7 @@
 import traits.api as traits
 from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group
 from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData
-from chaco.tools.api import PanTool, ZoomTool
+from chaco.tools.api import PanTool, ZoomTool, BetterZoom
 from enable.component_editor import ComponentEditor
 import numpy as np
 from traitsui.tabular_adapter import TabularAdapter
@@ -33,8 +33,8 @@ class DataPlotter(traits.HasTraits):
     data_index = traits.List(traits.Int)
     data_selected = traits.List(traits.Int)
 
-    y_offset = traits.Range(0,100)
-    x_offset = traits.Range(0,100)
+    y_offset = traits.Range(0,50)
+    x_offset = traits.Range(0,50)
 
     reset_plot_btn = traits.Button(label='Reset plot')
     select_all_btn = traits.Button(label='All')
@@ -51,8 +51,11 @@ class DataPlotter(traits.HasTraits):
 
 
         plot = Plot(plot_data, default_origin='bottom right')
-        plot.tools.append(PanTool(plot))
-        plot.tools.append(ZoomTool(plot))
+        self.zoomtool = BetterZoom(plot, zoom_to_mouse=False, x_min_zoom_factor=1, zoom_factor=1.5)
+        self.pantool = PanTool(plot)
+        plot.tools.append(self.zoomtool)
+        plot.tools.append(self.pantool)
+        #plot.tools.append(ZoomTool(plot))
         plot.x_axis.title = 'ppm'
         plot.y_axis.visible = False
         self.renderer = plot.plot(('x', 'series1'), type='line', color='black')[0]
@@ -65,10 +68,12 @@ class DataPlotter(traits.HasTraits):
         self.data_selected = [0]
         self.plot.padding = [0]*4
 
+
     def reset_plot(self):
         print 'resetting plot...'
         self.x_offset, self.y_offset = 0, 0
         self.set_plot_offset(x=self.x_offset, y=self.y_offset)
+        #add pan resetting
 
     def _reset_plot_btn_fired(self):
         self.reset_plot()
