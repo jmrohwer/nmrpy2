@@ -33,8 +33,9 @@ class DataPlotter(traits.HasTraits):
     data_index = traits.List(traits.Int)
     data_selected = traits.List(traits.Int)
 
-    y_offset = traits.Range(0,50)
-    x_offset = traits.Range(0,50)
+    y_offset = traits.Range(0,50, value=0)
+    x_offset = traits.Range(-15,15, value=0)
+    y_scale = traits.Range(1e-2,10.0, value=1.0)
 
     reset_plot_btn = traits.Button(label='Reset plot')
     select_all_btn = traits.Button(label='All')
@@ -58,24 +59,32 @@ class DataPlotter(traits.HasTraits):
         #plot.tools.append(ZoomTool(plot))
         plot.x_axis.title = 'ppm'
         plot.y_axis.visible = False
-        self.renderer = plot.plot(('x', 'series1'), type='line', color='black')[0]
+        self.renderer = plot.plot(('x', 'series1'), type='line', line_width=0.5, color='black')[0]
+        #plot.x_axis.tick_label_position = 'inside'
+        self.old_y_scale = self.y_scale
         self.plot = plot
-        
         self.index_array = np.arange(len(self.data))
         self.y_offsets = self.index_array * self.y_offset 
         self.x_offsets = self.index_array * self.x_offset 
-
         self.data_selected = [0]
-        self.plot.padding = [0]*4
+        self.plot.padding = [0,0,0,35]
 
+    def _y_scale_changed(self):
+        self.set_y_scale(scale=self.y_scale)
+
+    def set_y_scale(self, scale=y_scale):
+        self.plot.value_range.high /= scale/self.old_y_scale
+        self.plot.request_redraw()
+        self.old_y_scale = scale
 
     def reset_plot(self):
-        print 'resetting plot...'
         self.x_offset, self.y_offset = 0, 0
         self.set_plot_offset(x=self.x_offset, y=self.y_offset)
+        self.set_y_scale(scale=1.0)
         #add pan resetting
 
     def _reset_plot_btn_fired(self):
+        print 'resetting plot...'
         self.reset_plot()
 
     def _select_all_btn_fired(self):
@@ -98,27 +107,17 @@ class DataPlotter(traits.HasTraits):
 
     def _y_offset_changed(self):
         self.set_plot_offset(x=self.x_offset, y=self.y_offset)
-        #self.old_y_offsets = self.y_offsets
-        #self.y_offsets = self.index_array * self.y_offset 
-        #for i,j  in zip(self.y_offsets, self.plot.plots):
-        #    self.plot.plots[j][0].position = [0,i] 
-        #self.plot.request_redraw()
 
     def _x_offset_changed(self):
         self.set_plot_offset(x=self.x_offset, y=self.y_offset)
-        #self.old_x_offsets = self.x_offsets
-        #self.x_offsets = self.index_array * self.x_offset 
-        #for i,j  in zip(self.x_offsets, self.plot.plots):
-        #    self.plot.plots[j][0].position = [i,0] 
-        #self.plot.request_redraw()
 
     def _data_selected_changed(self):
-        print self.data_selected
-        print self.plot.plots.keys()
         self.plot.delplot(*self.plot.plots)
+        self.plot.request_redraw()
         for i in range(len(self.data_selected)):
-            self.plot.plot(('x', 'series'+str(self.data_selected[i]+1)), type='line', color='black')[0]
-        self.set_plot_offset(x=self.x_offset, y=self.y_offset)
+            self.plot.plot(('x', 'series%i'%(self.data_selected[i]+1)), type='line', line_width=0.5, color='black')[0]
+        self.reset_plot()
+        #self.set_plot_offset(x=self.x_offset, y=self.y_offset)
 
     def default_traits_view(self):
         traits_view = View(Group(Group(
@@ -143,6 +142,7 @@ class DataPlotter(traits.HasTraits):
                                   Group(
                                     Item('y_offset'),   
                                     Item('x_offset'), 
+                                    Item('y_scale', show_label=True),
                                     orientation='vertical'), 
                                     Item('reset_plot_btn', show_label=False), 
                                     show_border=False, 
