@@ -36,6 +36,9 @@ class DataPlotter(traits.HasTraits):
     y_offset = traits.Range(0,100)
     x_offset = traits.Range(0,100)
 
+    reset_plot_btn = traits.Button(label='Reset plot')
+    select_all_btn = traits.Button(label='All')
+    select_none_btn = traits.Button(label='None')
 
 
     def __init__(self, fid):
@@ -53,16 +56,28 @@ class DataPlotter(traits.HasTraits):
         plot.x_axis.title = 'ppm'
         plot.y_axis.visible = False
         self.renderer = plot.plot(('x', 'series1'), type='line', color='black')[0]
-
         self.plot = plot
-        self.data_selected = [0]
-
-        #self.y_offset = 0.0
-        #self.x_offset = 0.0
+        
         self.index_array = np.arange(len(self.data))
         self.y_offsets = self.index_array * self.y_offset 
         self.x_offsets = self.index_array * self.x_offset 
 
+        self.data_selected = [0]
+        self.plot.padding = [0]*4
+
+    def reset_plot(self):
+        print 'resetting plot...'
+        self.x_offset, self.y_offset = 0, 0
+        self.set_plot_offset(x=self.x_offset, y=self.y_offset)
+
+    def _reset_plot_btn_fired(self):
+        self.reset_plot()
+
+    def _select_all_btn_fired(self):
+        self.data_selected = range(len(self.data))
+
+    def _select_none_btn_fired(self):
+        self.data_selected = [] 
 
     def set_plot_offset(self, x=None, y=None):
         if x==None and y==None:
@@ -75,7 +90,6 @@ class DataPlotter(traits.HasTraits):
         for i,j in zip(self.index_array, self.plot.plots):
             self.plot.plots[j][0].position = [self.x_offsets[i], self.y_offsets[i]] 
         self.plot.request_redraw()
-
 
     def _y_offset_changed(self):
         self.set_plot_offset(x=self.x_offset, y=self.y_offset)
@@ -94,10 +108,12 @@ class DataPlotter(traits.HasTraits):
         #self.plot.request_redraw()
 
     def _data_selected_changed(self):
+        print self.data_selected
+        print self.plot.plots.keys()
         self.plot.delplot(*self.plot.plots)
-        self.plot.request_redraw()
         for i in range(len(self.data_selected)):
-             self.plot.plot(('x', 'series'+str(self.data_selected[i]+1)), type='line', color='black')[0]
+            self.plot.plot(('x', 'series'+str(self.data_selected[i]+1)), type='line', color='black')[0]
+        self.set_plot_offset(x=self.x_offset, y=self.y_offset)
 
     def default_traits_view(self):
         traits_view = View(Group(Group(
@@ -108,17 +124,22 @@ class DataPlotter(traits.HasTraits):
                                                    editable     = False,
                                                    multi_select = True,
                                                    adapter      = MultiSelectAdapter()),
-                            width=0.05, show_label=False, has_focus=True),
+                            width=0.02, show_label=False, has_focus=True),
                             Item(   'plot', 
                                     editor=ComponentEditor(), 
                                     show_label=False), 
                                     padding=0,  
-                                    show_border=True, 
+                                    show_border=False, 
                                     orientation='horizontal'),
-                            Group(
+                            Group(Group(
+                                    Item('select_all_btn', show_label=False), 
+                                    Item('select_none_btn', show_label=False),
+                                    orientation='vertical'), 
+                                  Group(
                                     Item('y_offset'),   
                                     Item('x_offset'), 
-                                    padding=2, 
+                                    orientation='vertical'), 
+                                    Item('reset_plot_btn', show_label=False), 
                                     show_border=False, 
                                     orientation='horizontal')),   
                             width=1200, 
