@@ -30,28 +30,34 @@ class MultiSelectAdapter(TabularAdapter):
 
 class DataPlotter(traits.HasTraits):
     plot = traits.Instance(Plot) #the attribute 'plot' of class DataPlotter is a trait that has to be an instance of the chaco class Plot.
+    plot_data = traits.Instance(ArrayPlotData)
     data_index = traits.List(traits.Int)
     data_selected = traits.List(traits.Int)
 
     y_offset = traits.Range(0,50, value=0)
     x_offset = traits.Range(-15,15, value=0)
-    y_scale = traits.Range(1e-2,10.0, value=1.0)
+    y_scale = traits.Range(0.01,10.0, value=1.0)
 
     reset_plot_btn = traits.Button(label='Reset plot')
     select_all_btn = traits.Button(label='All')
     select_none_btn = traits.Button(label='None')
 
+    #processing
+    lb = traits.Float(1.0)
+    lb_btn = traits.Button(label='Apodisation')
+    zf_btn = traits.Button(label='Zero-fill')
+    ft_btn = traits.Button(label='Fourier transform')
 
     def __init__(self, fid):
         super(DataPlotter, self).__init__()
+        self.fid = fid
         data = fid.data
-        self.data = data
         self.data_index = range(len(data))
-        x = np.linspace(fid.params['sw_left'], fid.params['sw_left']-fid.params['sw'], len(self.data[0]))#range(len(self.data[0]))
-        plot_data = ArrayPlotData(x=x, *data) #chaco class Plot require chaco class ArrayPlotData
+        self.x = np.linspace(fid.params['sw_left'], fid.params['sw_left']-fid.params['sw'], len(self.fid.data[0]))#range(len(self.data[0]))
+        self.plot_data = ArrayPlotData(x=self.x, *np.real(data)) #chaco class Plot require chaco class ArrayPlotData
 
 
-        plot = Plot(plot_data, default_origin='bottom right')
+        plot = Plot(self.plot_data, default_origin='bottom right')
         self.zoomtool = BetterZoom(plot, zoom_to_mouse=False, x_min_zoom_factor=1, zoom_factor=1.5)
         self.pantool = PanTool(plot)
         plot.tools.append(self.zoomtool)
@@ -63,7 +69,7 @@ class DataPlotter(traits.HasTraits):
         #plot.x_axis.tick_label_position = 'inside'
         self.old_y_scale = self.y_scale
         self.plot = plot
-        self.index_array = np.arange(len(self.data))
+        self.index_array = np.arange(len(self.fid.data))
         self.y_offsets = self.index_array * self.y_offset 
         self.x_offsets = self.index_array * self.x_offset 
         self.data_selected = [0]
@@ -79,8 +85,7 @@ class DataPlotter(traits.HasTraits):
 
     def reset_plot(self):
         self.x_offset, self.y_offset = 0, 0
-        self.set_plot_offset(x=self.x_offset, y=self.y_offset)
-        self.set_y_scale(scale=1.0)
+        self.y_scale = 1.0
         #add pan resetting
 
     def _reset_plot_btn_fired(self):
@@ -88,7 +93,7 @@ class DataPlotter(traits.HasTraits):
         self.reset_plot()
 
     def _select_all_btn_fired(self):
-        self.data_selected = range(len(self.data))
+        self.data_selected = range(len(self.fid.data))
 
     def _select_none_btn_fired(self):
         self.data_selected = [] 
@@ -111,30 +116,44 @@ class DataPlotter(traits.HasTraits):
     def _x_offset_changed(self):
         self.set_plot_offset(x=self.x_offset, y=self.y_offset)
 
+    #for some mysterious reason, selecting new data to plot doesn't retain the plot offsets even if you set them explicitly
     def _data_selected_changed(self):
         self.plot.delplot(*self.plot.plots)
         self.plot.request_redraw()
         for i in range(len(self.data_selected)):
-            self.plot.plot(('x', 'series%i'%(self.data_selected[i]+1)), type='line', line_width=0.5, color='black')[0]
+            self.plot.plot(('x', 'series%i'%(self.data_selected[i]+1)), type='line', line_width=0.5, color='black')
         self.reset_plot()
-        #self.set_plot_offset(x=self.x_offset, y=self.y_offset)
+        
+    #processing buttons
+    def _lb_btn_fired(self):
+        self.fid.emhz(self.lb)
+        for i in self.index_array:
+            self.plot_data.set_data("series%i"%(i+1), np.real(self.fid.data[i]))
+        self.plot.request_redraw()
+#        for i in self.index_array:
+#            self.plot.data.arrays['series%i'%i] = np.real(self.fid.data[i])
+#        for i in range(len(self.data_selected)):
+#            self.plot.plot(('x', 'series%i'%(self.data_selected[i]+1)), type='line', line_width=0.5, color='black')
+
+
 
     def default_traits_view(self):
-        traits_view = View(Group(Group(
-                            Item('data_index',
-                                  editor     = TabularEditor(
-                                                   show_titles  = False,
-                                                   selected     = 'data_selected',
-                                                   editable     = False,
-                                                   multi_select = True,
-                                                   adapter      = MultiSelectAdapter()),
-                            width=0.02, show_label=False, has_focus=True),
-                            Item(   'plot', 
-                                    editor=ComponentEditor(), 
-                                    show_label=False), 
-                                    padding=0,  
-                                    show_border=False, 
-                                    orientation='horizontal'),
+        traits_view = View(Group(
+                            Group(
+                                Item('data_index',
+                                      editor     = TabularEditor(
+                                                       show_titles  = False,
+                                                       selected     = 'data_selected',
+                                                       editable     = False,
+                                                       multi_select = True,
+                                                       adapter      = MultiSelectAdapter()),
+                                width=0.02, show_label=False, has_focus=True),
+                                Item(   'plot', 
+                                        editor=ComponentEditor(), 
+                                        show_label=False), 
+                                        padding=0,  
+                                        show_border=False, 
+                                        orientation='horizontal'),
                             Group(Group(
                                     Item('select_all_btn', show_label=False), 
                                     Item('select_none_btn', show_label=False),
@@ -145,8 +164,22 @@ class DataPlotter(traits.HasTraits):
                                     Item('y_scale', show_label=True),
                                     orientation='vertical'), 
                                     Item('reset_plot_btn', show_label=False), 
-                                    show_border=False, 
-                                    orientation='horizontal')),   
+                                  Group(
+                                    Group(
+                                    Item('lb', show_label=False), 
+                                    Item('lb_btn', show_label=False),
+                                    orientation='horizontal'),
+                                    Group(
+                                    Item('zf_btn', show_label=False), 
+                                    Item('ft_btn', show_label=False),
+                                    orientation='horizontal'),
+                                    show_border=True, 
+                                    ), 
+
+                                    show_border=True, 
+                                    orientation='horizontal')
+                    
+                                    ),   
                             width=1200, 
                             height=600, 
                             resizable=True, 

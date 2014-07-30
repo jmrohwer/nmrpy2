@@ -160,8 +160,8 @@ class FID_array(object):
 		self.t = np.array([acqtime]*len(self.data))
 
         def ui(self):
-                fplot = DataPlotter(self)
-                fplot.configure_traits()
+                self.fidplot = DataPlotter(self)
+                self.fidplot.configure_traits()
 
 	def zf_2(self):
 		"""Apply a single degree of zero-filling.
