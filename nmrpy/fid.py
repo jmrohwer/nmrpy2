@@ -63,6 +63,7 @@ class FID_array(object):
                     #self.data = self.data[:,::-1]
                 self._peaks = None
                 self.peaks = [[]]
+                self._ft = False
 
         @property
         def data(self):
@@ -204,6 +205,9 @@ class FID_array(object):
 		[1] Cooley, James W., and John W. Tukey, 1965, 'An algorithm for the machine calculation of complex Fourier series,' Math. Comput. 19: 297-301.	
 		
 		"""
+                if self._ft:
+                    return
+                self._ft = True
 		data =  np.array(np.fft.fft(self.data),dtype=self.data.dtype)
 		s = data.shape[-1]
                 if self._varian:

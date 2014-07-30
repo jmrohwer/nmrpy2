@@ -36,7 +36,7 @@ class DataPlotter(traits.HasTraits):
 
     y_offset = traits.Range(0,50, value=0)
     x_offset = traits.Range(-15,15, value=0)
-    y_scale = traits.Range(0.01,10.0, value=1.0)
+    y_scale = traits.Range(1e-3,2.0, value=1.0)
 
     reset_plot_btn = traits.Button(label='Reset plot')
     select_all_btn = traits.Button(label='All')
@@ -63,7 +63,6 @@ class DataPlotter(traits.HasTraits):
         self.pantool = PanTool(plot)
         plot.tools.append(self.zoomtool)
         plot.tools.append(self.pantool)
-        #plot.tools.append(ZoomTool(plot))
         plot.x_axis.title = 'ppm'
         plot.y_axis.visible = False
         self.renderer = plot.plot(('x', 'series1'), type='line', line_width=0.5, color='black')[0]
@@ -130,6 +129,8 @@ class DataPlotter(traits.HasTraits):
     #plot the current apodisation function based on lb, and do apodisation
     #=================================================
     def _lb_plt_btn_fired(self):
+        if self.fid._ft:
+            return
         if 'lb1' in self.plot.plots:
         #if 'lb1' in self.plot_data.arrays:
             #self.plot_data.del_data('lb1')
@@ -139,6 +140,8 @@ class DataPlotter(traits.HasTraits):
         self.plot_lb()
 
     def plot_lb(self):
+        if self.fid._ft:
+            return
         lb_data = self.fid.data[self.data_selected[0]] 
         lb_plt = np.exp(-np.pi*np.arange(len(lb_data))*(self.lb/self.fid.params['sw_hz'])) * lb_data[0]
         self.plot_data.set_data('lb1', np.real(lb_plt))
@@ -146,21 +149,30 @@ class DataPlotter(traits.HasTraits):
         self.plot.request_redraw()
        
     def _lb_changed(self):
+        if self.fid._ft:
+            return
         lb_data = self.fid.data[self.data_selected[0]] 
         lb_plt = np.exp(-np.pi*np.arange(len(lb_data))*(self.lb/self.fid.params['sw_hz'])) * lb_data[0]
         self.plot_data.set_data('lb1', np.real(lb_plt))
          
     def _lb_btn_fired(self):
+        if self.fid._ft:
+            return
         self.fid.emhz(self.lb)
         self.update_plot_data_from_fid()
     #=================================================
 
-
     def _zf_btn_fired(self):
+        if self.fid._ft:
+            return
+        if 'lb1' in self.plot.plots:
+            self.plot.delplot('lb1')
         self.fid.zf()
         self.update_plot_data_from_fid()
 
     def _ft_btn_fired(self):
+        if 'lb1' in self.plot.plots:
+            self.plot.delplot('lb1')
         self.fid.ft()
         self.update_plot_data_from_fid()
 
@@ -217,8 +229,8 @@ class DataPlotter(traits.HasTraits):
                                     orientation='horizontal')
                     
                                     ),   
-                            width=1200, 
-                            height=600, 
+                            width=1.0, 
+                            height=0.6, 
                             resizable=True, 
                             title='NMRPy')
         return traits_view
