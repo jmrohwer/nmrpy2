@@ -127,7 +127,7 @@ class DataPlotter(traits.HasTraits):
         
     #processing buttons
     
-    #plot the current apodisation function based on lb
+    #plot the current apodisation function based on lb, and do apodisation
     #=================================================
     def _lb_plt_btn_fired(self):
         if 'lb1' in self.plot.plots:
@@ -149,14 +149,22 @@ class DataPlotter(traits.HasTraits):
         if 'lb1' in self.plot.plots:
             self.plot.delplot('lb1')
         self.plot_lb()
-    #=================================================
          
-
     def _lb_btn_fired(self):
         self.fid.emhz(self.lb)
-        self.update_plot_data()
+        self.update_plot_data_from_fid()
+    #=================================================
 
-    def update_plot_data(self):
+
+    def _zf_btn_fired(self):
+        self.fid.zf()
+        self.update_plot_data_from_fid()
+
+
+
+    def update_plot_data_from_fid(self):
+        self.x = np.linspace(self.fid.params['sw_left'], self.fid.params['sw_left']-self.fid.params['sw'], len(self.fid.data[0]))
+        self.plot_data.set_data('x', self.x)
         for i in self.index_array:
             self.plot_data.set_data("series%i"%(i+1), np.real(self.fid.data[i]))
         self.plot.request_redraw()
