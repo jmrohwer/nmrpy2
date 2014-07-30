@@ -146,9 +146,9 @@ class DataPlotter(traits.HasTraits):
         self.plot.request_redraw()
        
     def _lb_changed(self):
-        if 'lb1' in self.plot.plots:
-            self.plot.delplot('lb1')
-        self.plot_lb()
+        lb_data = self.fid.data[self.data_selected[0]] 
+        lb_plt = np.exp(-np.pi*np.arange(len(lb_data))*(self.lb/self.fid.params['sw_hz'])) * lb_data[0]
+        self.plot_data.set_data('lb1', np.real(lb_plt))
          
     def _lb_btn_fired(self):
         self.fid.emhz(self.lb)
@@ -190,19 +190,19 @@ class DataPlotter(traits.HasTraits):
                                         padding=0,  
                                         show_border=False, 
                                         orientation='horizontal'),
-                            Group(Group(
+                            Group(Group(Group(
                                     Item('select_all_btn', show_label=False), 
                                     Item('select_none_btn', show_label=False),
+                                    Item('reset_plot_btn', show_label=False), 
                                     orientation='vertical'), 
                                   Group(
                                     Item('y_offset'),   
                                     Item('x_offset'), 
                                     Item('y_scale', show_label=True),
-                                    orientation='vertical'), 
-                                    Item('reset_plot_btn', show_label=False), 
+                                    orientation='vertical'), orientation='horizontal', show_border=True), 
                                   Group(
                                     Group(
-                                    Item('lb', show_label=False), 
+                                    Item('lb', show_label=False, format_str='%.2f Hz'), 
                                     Item('lb_btn', show_label=False),
                                     Item('lb_plt_btn', show_label=False),
                                     orientation='horizontal'),
