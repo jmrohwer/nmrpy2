@@ -160,6 +160,9 @@ class DataPlotter(traits.HasTraits):
         self.fid.zf()
         self.update_plot_data_from_fid()
 
+    def _ft_btn_fired(self):
+        self.fid.ft()
+        self.update_plot_data_from_fid()
 
 
     def update_plot_data_from_fid(self):
