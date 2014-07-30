@@ -49,6 +49,10 @@ class DataPlotter(traits.HasTraits):
     zf_btn = traits.Button(label='Zero-fill')
     ft_btn = traits.Button(label='Fourier transform')
 
+    ph_auto_btn = traits.Button(label='Auto phase:\nall')
+    ph_auto_single_btn = traits.Button(label='Auto phase:\nselected')
+    ph_man_btn = traits.Button(label='Manual phase')
+
     def __init__(self, fid):
         super(DataPlotter, self).__init__()
         self.fid = fid
@@ -176,6 +180,16 @@ class DataPlotter(traits.HasTraits):
         self.fid.ft()
         self.update_plot_data_from_fid()
 
+    def _ph_auto_btn_fired(self):
+        if self.fid._ft:
+            self.fid.phase_auto(discard_imaginary=False)
+        self.update_plot_data_from_fid()
+
+    def _ph_auto_single_btn_fired(self):
+        if self.fid._ft:
+            for i in self.data_selected:
+                self.fid._phase_area_single(i)
+        self.update_plot_data_from_fid()
 
     def update_plot_data_from_fid(self):
         self.x = np.linspace(self.fid.params['sw_left'], self.fid.params['sw_left']-self.fid.params['sw'], len(self.fid.data[0]))
@@ -211,7 +225,7 @@ class DataPlotter(traits.HasTraits):
                                     Item('y_offset'),   
                                     Item('x_offset'), 
                                     Item('y_scale', show_label=True),
-                                    orientation='vertical'), orientation='horizontal', show_border=True), 
+                                    orientation='vertical'), orientation='horizontal', show_border=True, label='Plotting'), 
                                   Group(
                                     Group(
                                     Item('lb', show_label=False, format_str='%.2f Hz'), 
@@ -222,7 +236,12 @@ class DataPlotter(traits.HasTraits):
                                     Item('zf_btn', show_label=False), 
                                     Item('ft_btn', show_label=False),
                                     orientation='horizontal'),
-                                    show_border=True, 
+                                  Group(
+                                    Item('ph_auto_btn', show_label=False),
+                                    Item('ph_auto_single_btn', show_label=False),
+                                    Item('ph_man_btn', show_label=False),
+                                    orientation='horizontal'),
+                                    show_border=True, label='Processing' 
                                     ), 
 
                                     show_border=True, 
