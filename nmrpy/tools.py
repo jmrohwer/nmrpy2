@@ -45,6 +45,7 @@ class DataPlotter(traits.HasTraits):
     #processing
     lb = traits.Float(1.0)
     lb_btn = traits.Button(label='Apodisation')
+    lb_plt_btn = traits.Button(label='Plot Apod.')
     zf_btn = traits.Button(label='Zero-fill')
     ft_btn = traits.Button(label='Fourier transform')
 
@@ -125,16 +126,21 @@ class DataPlotter(traits.HasTraits):
         self.reset_plot()
         
     #processing buttons
+    
+    #plot the current apodisation function based on lb
+    def _lb_plot_btn_fired(self):
+        lb_plt = self.plot_data.arrays['series%i'%(self.data_selected[0]+1)][0]*np.exp(-np.pi*np.arange(len(self.fid.data[0]))*(self.lb/self.fid.params['sw_hz']))  
+        print lb_plt
+        
+
     def _lb_btn_fired(self):
         self.fid.emhz(self.lb)
+        self.update_plot_data()
+
+    def update_plot_data(self):
         for i in self.index_array:
             self.plot_data.set_data("series%i"%(i+1), np.real(self.fid.data[i]))
         self.plot.request_redraw()
-#        for i in self.index_array:
-#            self.plot.data.arrays['series%i'%i] = np.real(self.fid.data[i])
-#        for i in range(len(self.data_selected)):
-#            self.plot.plot(('x', 'series%i'%(self.data_selected[i]+1)), type='line', line_width=0.5, color='black')
-
 
 
     def default_traits_view(self):
@@ -168,6 +174,7 @@ class DataPlotter(traits.HasTraits):
                                     Group(
                                     Item('lb', show_label=False), 
                                     Item('lb_btn', show_label=False),
+                                    Item('lb_plt_btn', show_label=False),
                                     orientation='horizontal'),
                                     Group(
                                     Item('zf_btn', show_label=False), 
