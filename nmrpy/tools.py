@@ -128,10 +128,29 @@ class DataPlotter(traits.HasTraits):
     #processing buttons
     
     #plot the current apodisation function based on lb
-    def _lb_plot_btn_fired(self):
-        lb_plt = self.plot_data.arrays['series%i'%(self.data_selected[0]+1)][0]*np.exp(-np.pi*np.arange(len(self.fid.data[0]))*(self.lb/self.fid.params['sw_hz']))  
-        print lb_plt
-        
+    #=================================================
+    def _lb_plt_btn_fired(self):
+        if 'lb1' in self.plot.plots:
+        #if 'lb1' in self.plot_data.arrays:
+            #self.plot_data.del_data('lb1')
+            self.plot.delplot('lb1')
+            self.plot.request_redraw()
+            return 
+        self.plot_lb()
+
+    def plot_lb(self):
+        lb_data = self.fid.data[self.data_selected[0]] 
+        lb_plt = np.exp(-np.pi*np.arange(len(lb_data))*(self.lb/self.fid.params['sw_hz'])) * lb_data[0]
+        self.plot_data.set_data('lb1', np.real(lb_plt))
+        self.plot.plot(('x', 'lb1'), type='line', name='lb1', line_width=1, color='blue')[0]
+        self.plot.request_redraw()
+       
+    def _lb_changed(self):
+        if 'lb1' in self.plot.plots:
+            self.plot.delplot('lb1')
+        self.plot_lb()
+    #=================================================
+         
 
     def _lb_btn_fired(self):
         self.fid.emhz(self.lb)
