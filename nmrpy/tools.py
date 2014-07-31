@@ -2,7 +2,7 @@
 
 #from traits.api import HasTraits, Instance, Enum, Range, List, Int, Array
 import traits.api as traits
-from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group
+from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler
 from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData
 from chaco.tools.api import PanTool, ZoomTool, BetterZoom
 from enable.component_editor import ComponentEditor
@@ -10,9 +10,33 @@ import numpy as np
 from traitsui.tabular_adapter import TabularAdapter
 from matplotlib import cm
 
+
+class TC_Handler(Handler):
+
+    #def ph_man_btn_changed(self, info):
+    #    if info.initialized:
+    #        print info
+    #        info.ui.title += "*"
+
+    #called when any trait attribute value is changed
+    def setattr(self, info, object, name, value):
+        Handler.setattr(self, info, object, name, value)
+        if name == 'ph_man_btn':
+            if not object._manphasing:
+                info.ph_man_btn.label = 'Manual'
+            elif object._manphasing:
+                info.ph_man_btn.label = 'Manual*'
+
+        if name == 'ft_btn':
+            if object.fid._ft:
+                info.ft_btn.label = 'FT*'
+
+    #def object__updated_changed(self, info):
+    #    if info.initialized:
+    #        info.ui.title += "*"
+
+
 class MultiSelectAdapter(TabularAdapter):
-    """ This adapter is used by both the left and right tables
-    """
 
     # Titles and column names for each column of a table.
     # In this example, each table has only one column.
@@ -47,11 +71,12 @@ class DataPlotter(traits.HasTraits):
     lb_btn = traits.Button(label='Apodisation')
     lb_plt_btn = traits.Button(label='Plot Apod.')
     zf_btn = traits.Button(label='Zero-fill')
-    ft_btn = traits.Button(label='Fourier transform')
+    ft_btn = traits.Button(label='FT')
 
-    ph_auto_btn = traits.Button(label='Auto phase:\nall')
-    ph_auto_single_btn = traits.Button(label='Auto phase:\nselected')
-    ph_man_btn = traits.Button(label='Manual phase')
+    ph_auto_btn = traits.Button(label='Auto: all')
+    ph_auto_single_btn = traits.Button(label='Auto: selected')
+    ph_man_btn = traits.Button(label='Manual')
+    _manphasing = False
 
     def __init__(self, fid):
         super(DataPlotter, self).__init__()
@@ -200,9 +225,12 @@ class DataPlotter(traits.HasTraits):
     def _ph_man_btn_fired(self):
         if not self.fid._ft:
             return
-        print 'phasing...'
-         
-            
+        if not self._manphasing:
+            self._manphasing = True
+            self.plot.plots['plot0'][0].color = 'red'   
+        elif self._manphasing:
+            self._manphasing = False
+            self.plot.plots['plot0'][0].color = 'black'   
 
     def update_plot_data_from_fid(self):
         self.x = np.linspace(self.fid.params['sw_left'], self.fid.params['sw_left']-self.fid.params['sw'], len(self.fid.data[0]))
@@ -253,17 +281,18 @@ class DataPlotter(traits.HasTraits):
                                     Item('ph_auto_btn', show_label=False),
                                     Item('ph_auto_single_btn', show_label=False),
                                     Item('ph_man_btn', show_label=False),
-                                    orientation='horizontal'),
+                                    orientation='horizontal', 
+                                    show_border=True,
+                                    label='Phase correction'),
                                     show_border=True, label='Processing' 
                                     ), 
-
                                     show_border=True, 
                                     orientation='horizontal')
-                    
                                     ),   
                             width=1.0, 
-                            height=0.6, 
+                            height=0.8, 
                             resizable=True, 
+                            handler=TC_Handler(),
                             title='NMRPy')
         return traits_view
 
