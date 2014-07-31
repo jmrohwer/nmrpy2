@@ -58,8 +58,8 @@ class DataPlotter(traits.HasTraits):
     data_index = traits.List(traits.Int)
     data_selected = traits.List(traits.Int)
 
-    y_offset = traits.Range(0,50, value=0)
-    x_offset = traits.Range(-15,15, value=0)
+    y_offset = traits.Range(0.0,50.0, value=0)
+    x_offset = traits.Range(-15.0,15.0, value=0)
     y_scale = traits.Range(1e-3,2.0, value=1.0)
 
     reset_plot_btn = traits.Button(label='Reset plot')
@@ -205,6 +205,8 @@ class DataPlotter(traits.HasTraits):
     def _ft_btn_fired(self):
         if 'lb1' in self.plot.plots:
             self.plot.delplot('lb1')
+        if self.fid._ft:
+            return
         self.fid.ft()
         self.update_plot_data_from_fid()
         self.reset_plot()
@@ -232,11 +234,14 @@ class DataPlotter(traits.HasTraits):
             self._manphasing = False
             self.plot.plots['plot0'][0].color = 'black'   
 
-    def update_plot_data_from_fid(self):
+    def update_plot_data_from_fid(self, index=None):
         self.x = np.linspace(self.fid.params['sw_left'], self.fid.params['sw_left']-self.fid.params['sw'], len(self.fid.data[0]))
         self.plot_data.set_data('x', self.x)
-        for i in self.index_array:
-            self.plot_data.set_data("series%i"%(i+1), np.real(self.fid.data[i]))
+        if index == None:
+            for i in self.index_array:
+                self.plot_data.set_data("series%i"%(i+1), np.real(self.fid.data[i]))
+        else:
+            self.plot_data.set_data("series%i"%(index+1), np.real(self.fid.data[index]))
         self.plot.request_redraw()
 
 
