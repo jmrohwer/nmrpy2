@@ -110,8 +110,9 @@ class DataPlotter(traits.HasTraits):
         self.old_y_offsets = self.y_offsets
         self.x_offsets = self.index_array * x
         self.y_offsets = self.index_array * y 
-        for i,j in zip(self.index_array, self.plot.plots):
-            self.plot.plots[j][0].position = [self.x_offsets[i], self.y_offsets[i]] 
+        for i in np.arange(len(self.plot.plots)):
+            print i
+            self.plot.plots['plot%i'%i][0].position = [self.x_offsets[i], self.y_offsets[i]] 
         self.plot.request_redraw()
 
     def _y_offset_changed(self):
@@ -124,8 +125,8 @@ class DataPlotter(traits.HasTraits):
     def _data_selected_changed(self):
         self.plot.delplot(*self.plot.plots)
         self.plot.request_redraw()
-        for i in range(len(self.data_selected)):
-            self.plot.plot(('x', 'series%i'%(self.data_selected[i]+1)), type='line', line_width=0.5, color='black')
+        for i in self.data_selected:
+            self.plot.plot(('x', 'series%i'%(i+1)), type='line', line_width=0.5, color='black')
         self.reset_plot()
         
     #processing buttons
