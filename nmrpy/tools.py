@@ -185,15 +185,24 @@ class DataPlotter(traits.HasTraits):
         self.reset_plot()
 
     def _ph_auto_btn_fired(self):
-        if self.fid._ft:
-            self.fid.phase_auto(discard_imaginary=False)
+        if not self.fid._ft:
+            return 
+        self.fid.phase_auto(discard_imaginary=False)
         self.update_plot_data_from_fid()
 
     def _ph_auto_single_btn_fired(self):
-        if self.fid._ft:
-            for i in self.data_selected:
-                self.fid._phase_area_single(i)
+        if not self.fid._ft:
+            return 
+        for i in self.data_selected:
+            self.fid._phase_area_single(i)
         self.update_plot_data_from_fid()
+
+    def _ph_man_btn_fired(self):
+        if not self.fid._ft:
+            return
+        print 'phasing...'
+         
+            
 
     def update_plot_data_from_fid(self):
         self.x = np.linspace(self.fid.params['sw_left'], self.fid.params['sw_left']-self.fid.params['sw'], len(self.fid.data[0]))
