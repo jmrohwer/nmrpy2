@@ -43,7 +43,7 @@ class DataPlotter(traits.HasTraits):
     select_none_btn = traits.Button(label='None')
 
     #processing
-    lb = traits.Float(1.0)
+    lb = traits.Float(10.0)
     lb_btn = traits.Button(label='Apodisation')
     lb_plt_btn = traits.Button(label='Plot Apod.')
     zf_btn = traits.Button(label='Zero-fill')
@@ -90,6 +90,9 @@ class DataPlotter(traits.HasTraits):
     def reset_plot(self):
         self.x_offset, self.y_offset = 0, 0
         self.y_scale = 1.0
+        self.plot.index_range.low, self.plot.index_range.high = [self.x[-1], self.x[0]]
+        self.plot.value_range.low = self.plot.data.arrays['series%i'%(self.data_selected[0]+1)].min()
+        self.plot.value_range.high = self.plot.data.arrays['series%i'%(self.data_selected[0]+1)].max()
         #add pan resetting
 
     def _reset_plot_btn_fired(self):
@@ -111,7 +114,6 @@ class DataPlotter(traits.HasTraits):
         self.x_offsets = self.index_array * x
         self.y_offsets = self.index_array * y 
         for i in np.arange(len(self.plot.plots)):
-            print i
             self.plot.plots['plot%i'%i][0].position = [self.x_offsets[i], self.y_offsets[i]] 
         self.plot.request_redraw()
 
@@ -180,6 +182,7 @@ class DataPlotter(traits.HasTraits):
             self.plot.delplot('lb1')
         self.fid.ft()
         self.update_plot_data_from_fid()
+        self.reset_plot()
 
     def _ph_auto_btn_fired(self):
         if self.fid._ft:
