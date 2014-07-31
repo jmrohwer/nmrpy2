@@ -34,7 +34,7 @@ fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'],'weight' : 'n
 
 
 
-def fid_from_path(path=None, varian=False, bruker=False):
+def fid_from_path(path='.', varian=False, bruker=False):
         """ imports and creates a Varian (Agilent) or Bruker FID and returns an FID_array instance. """
         if path:
             if varian:
