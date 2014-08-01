@@ -103,8 +103,8 @@ class DataPlotter(traits.HasTraits):
         self.old_y_scale = self.y_scale
         self.plot = plot
         self.index_array = np.arange(len(self.fid.data))
-        self.y_offsets = self.index_array * self.y_offset 
-        self.x_offsets = self.index_array * self.x_offset 
+        self.y_offsets = self.index_array * self.y_offset
+        self.x_offsets = self.index_array * self.x_offset
         self.data_selected = [0]
         self.plot.padding = [0,0,0,35]
         self.x_range_up = round(self.x[0], 3)
@@ -147,18 +147,18 @@ class DataPlotter(traits.HasTraits):
         self.data_selected = range(len(self.fid.data))
 
     def _select_none_btn_fired(self):
-        self.data_selected = [] 
+        self.data_selected = []
 
     def set_plot_offset(self, x=None, y=None):
         if x==None and y==None:
             pass
-        
+
         self.old_x_offsets = self.x_offsets
         self.old_y_offsets = self.y_offsets
         self.x_offsets = self.index_array * x
-        self.y_offsets = self.index_array * y 
+        self.y_offsets = self.index_array * y
         for i in np.arange(len(self.plot.plots)):
-            self.plot.plots['plot%i'%i][0].position = [self.x_offsets[i], self.y_offsets[i]] 
+            self.plot.plots['plot%i'%i][0].position = [self.x_offsets[i], self.y_offsets[i]]
         self.plot.request_redraw()
 
     def _y_offset_changed(self):
@@ -174,9 +174,9 @@ class DataPlotter(traits.HasTraits):
         for i in self.data_selected:
             self.plot.plot(('x', 'series%i'%(i+1)), type='line', line_width=0.5, color='black')
         self.reset_plot()
-        
+
     #processing buttons
-    
+
     #plot the current apodisation function based on lb, and do apodisation
     #=================================================
     def _lb_plt_btn_fired(self):
@@ -187,25 +187,25 @@ class DataPlotter(traits.HasTraits):
             #self.plot_data.del_data('lb1')
             self.plot.delplot('lb1')
             self.plot.request_redraw()
-            return 
+            return
         self.plot_lb()
 
     def plot_lb(self):
         if self.fid._ft:
             return
-        lb_data = self.fid.data[self.data_selected[0]] 
+        lb_data = self.fid.data[self.data_selected[0]]
         lb_plt = np.exp(-np.pi*np.arange(len(lb_data))*(self.lb/self.fid.params['sw_hz'])) * lb_data[0]
         self.plot_data.set_data('lb1', np.real(lb_plt))
         self.plot.plot(('x', 'lb1'), type='line', name='lb1', line_width=1, color='blue')[0]
         self.plot.request_redraw()
-       
+
     def _lb_changed(self):
         if self.fid._ft:
             return
-        lb_data = self.fid.data[self.data_selected[0]] 
+        lb_data = self.fid.data[self.data_selected[0]]
         lb_plt = np.exp(-np.pi*np.arange(len(lb_data))*(self.lb/self.fid.params['sw_hz'])) * lb_data[0]
         self.plot_data.set_data('lb1', np.real(lb_plt))
-         
+
     def _lb_btn_fired(self):
         if self.fid._ft:
             return
@@ -232,13 +232,13 @@ class DataPlotter(traits.HasTraits):
 
     def _ph_auto_btn_fired(self):
         if not self.fid._ft:
-            return 
+            return
         self.fid.phase_auto(discard_imaginary=False)
         self.update_plot_data_from_fid()
 
     def _ph_auto_single_btn_fired(self):
         if not self.fid._ft:
-            return 
+            return
         for i in self.data_selected:
             self.fid._phase_area_single(i)
         self.update_plot_data_from_fid()
@@ -248,10 +248,10 @@ class DataPlotter(traits.HasTraits):
             return
         if not self._manphasing:
             self._manphasing = True
-            self.plot.plots['plot0'][0].color = 'red'   
+            self.plot.plots['plot0'][0].color = 'red'
         elif self._manphasing:
             self._manphasing = False
-            self.plot.plots['plot0'][0].color = 'black'   
+            self.plot.plots['plot0'][0].color = 'black'
 
     def update_plot_data_from_fid(self, index=None):
         self.x = np.linspace(self.fid.params['sw_left'], self.fid.params['sw_left']-self.fid.params['sw'], len(self.fid.data[0]))
@@ -275,51 +275,51 @@ class DataPlotter(traits.HasTraits):
                                                        multi_select = True,
                                                        adapter      = MultiSelectAdapter()),
                                 width=0.02, show_label=False, has_focus=True),
-                                Item(   'plot', 
-                                        editor=ComponentEditor(), 
-                                        show_label=False), 
-                                        padding=0,  
-                                        show_border=False, 
+                                Item(   'plot',
+                                        editor=ComponentEditor(),
+                                        show_label=False),
+                                        padding=0,
+                                        show_border=False,
                                         orientation='horizontal'),
                             Group(Group(Group(
-                                    Item('select_all_btn', show_label=False), 
+                                    Item('select_all_btn', show_label=False),
                                     Item('select_none_btn', show_label=False),
-                                    Item('reset_plot_btn', show_label=False), 
-                                    orientation='vertical'), 
+                                    Item('reset_plot_btn', show_label=False),
+                                    orientation='vertical'),
                                   Group(
-                                    Item('y_offset'),   
-                                    Item('x_offset'), 
+                                    Item('y_offset'),
+                                    Item('x_offset'),
                                     Item('y_scale', show_label=True),
                                     Group(
-                                    Item('x_range_btn', show_label=False), 
-                                    Item('x_range_up', show_label=False), 
-                                    Item('x_range_dn', show_label=False), orientation='horizontal'), 
-                                    orientation='vertical'), orientation='horizontal', show_border=True, label='Plotting'), 
+                                    Item('x_range_btn', show_label=False),
+                                    Item('x_range_up', show_label=False),
+                                    Item('x_range_dn', show_label=False), orientation='horizontal'),
+                                    orientation='vertical'), orientation='horizontal', show_border=True, label='Plotting'),
                                   Group(
                                     Group(
-                                    Item('lb', show_label=False, format_str='%.2f Hz'), 
+                                    Item('lb', show_label=False, format_str='%.2f Hz'),
                                     Item('lb_btn', show_label=False),
                                     Item('lb_plt_btn', show_label=False),
                                     orientation='horizontal'),
                                     Group(
-                                    Item('zf_btn', show_label=False), 
+                                    Item('zf_btn', show_label=False),
                                     Item('ft_btn', show_label=False),
                                     orientation='horizontal'),
                                   Group(
                                     Item('ph_auto_btn', show_label=False),
                                     Item('ph_auto_single_btn', show_label=False),
                                     Item('ph_man_btn', show_label=False),
-                                    orientation='horizontal', 
+                                    orientation='horizontal',
                                     show_border=True,
                                     label='Phase correction'),
-                                    show_border=True, label='Processing' 
-                                    ), 
-                                    show_border=True, 
+                                    show_border=True, label='Processing'
+                                    ),
+                                    show_border=True,
                                     orientation='horizontal')
-                                    ),   
-                            width=1.0, 
-                            height=0.8, 
-                            resizable=True, 
+                                    ),
+                            width=1.0,
+                            height=0.8,
+                            resizable=True,
                             handler=TC_Handler(),
                             title='NMRPy')
         return traits_view
@@ -340,11 +340,3 @@ class DataPlotter(traits.HasTraits):
 if __name__ == "__main__":
     print 'This module has to be imported as a submodule of nmrpy'
     pass
-
-
-
-
-
-
-
-
