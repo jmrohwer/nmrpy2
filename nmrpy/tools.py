@@ -20,6 +20,7 @@ class TC_Handler(Handler):
 
     #called when any trait attribute value is changed
     def setattr(self, info, object, name, value):
+
         Handler.setattr(self, info, object, name, value)
         if name == 'ph_man_btn':
             if not object._manphasing:
@@ -61,6 +62,9 @@ class DataPlotter(traits.HasTraits):
     y_offset = traits.Range(0.0,50.0, value=0)
     x_offset = traits.Range(-15.0,15.0, value=0)
     y_scale = traits.Range(1e-3,2.0, value=1.0)
+    x_range_up = traits.Float()
+    x_range_dn = traits.Float()
+    x_range_btn = traits.Button(label='Set range')
 
     reset_plot_btn = traits.Button(label='Reset plot')
     select_all_btn = traits.Button(label='All')
@@ -103,6 +107,21 @@ class DataPlotter(traits.HasTraits):
         self.x_offsets = self.index_array * self.x_offset 
         self.data_selected = [0]
         self.plot.padding = [0,0,0,35]
+        self.x_range_up = round(self.x[0], 3)
+        self.x_range_dn = round(self.x[-1], 3)
+
+
+    def _x_range_btn_fired(self):
+        if self.x_range_up < self.x_range_dn:
+            xr = self.x_range_up
+            self.x_range_up = self.x_range_dn
+            self.x_range_dn = xr
+        self.set_x_range(up=self.x_range_up, dn=self.x_range_dn)
+        self.plot.request_redraw()
+
+    def set_x_range(self, up=x_range_up, dn=x_range_dn):
+        self.plot.index_range.high = up
+        self.plot.index_range.low = dn
 
     def _y_scale_changed(self):
         self.set_y_scale(scale=self.y_scale)
@@ -271,6 +290,10 @@ class DataPlotter(traits.HasTraits):
                                     Item('y_offset'),   
                                     Item('x_offset'), 
                                     Item('y_scale', show_label=True),
+                                    Group(
+                                    Item('x_range_btn', show_label=False), 
+                                    Item('x_range_up', show_label=False), 
+                                    Item('x_range_dn', show_label=False), orientation='horizontal'), 
                                     orientation='vertical'), orientation='horizontal', show_border=True, label='Plotting'), 
                                   Group(
                                     Group(
