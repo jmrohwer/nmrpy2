@@ -87,29 +87,38 @@ class DataPlotter(traits.HasTraits):
         self.fid = fid
         data = fid.data
         self.data_index = range(len(data))
-        self.x = np.linspace(fid.params['sw_left'], fid.params['sw_left']-fid.params['sw'], len(self.fid.data[0]))#range(len(self.data[0]))
-        self.plot_data = ArrayPlotData(x=self.x, *np.real(data)) #chaco class Plot require chaco class ArrayPlotData
-
-
-        plot = Plot(self.plot_data, default_origin='bottom right')
-        self.zoomtool = BetterZoom(plot, zoom_to_mouse=False, x_min_zoom_factor=1, zoom_factor=1.5)
-        self.pantool = PanTool(plot)
-        plot.tools.append(self.zoomtool)
-        plot.tools.append(self.pantool)
-        plot.x_axis.title = 'ppm'
-        plot.y_axis.visible = False
-        self.renderer = plot.plot(('x', 'series1'), type='line', line_width=0.5, color='black')[0]
-        #plot.x_axis.tick_label_position = 'inside'
-        self.old_y_scale = self.y_scale
+        if self.fid._ft:
+            self.x = np.linspace(self.fid.params['sw_left'], fid.params['sw_left']-fid.params['sw'], len(self.fid.data[0]))#range(len(self.data[0]))
+            self.plot_data = ArrayPlotData(x=self.x, *np.real(data)) #chaco class Plot require chaco class ArrayPlotData
+            plot = Plot(self.plot_data, default_origin='bottom right', padding=[5, 0, 0, 35])
+        else: 
+            self.x = np.linspace(0, self.fid.params['at'], len(self.fid.data[0]))
+            self.plot_data = ArrayPlotData(x=self.x, *np.real(data)) #chaco class Plot require chaco class ArrayPlotData
+            plot = Plot(self.plot_data, default_origin='bottom left', padding=[5, 0, 0, 35])
         self.plot = plot
+        self.plot_init()
+        
+    def plot_init(self, index=[0]):
+        if self.fid._ft:
+            self.plot.x_axis.title = 'ppm.'
+        else:
+            self.plot.x_axis.title = 'sec.'
+        self.zoomtool = BetterZoom(self.plot, zoom_to_mouse=False, x_min_zoom_factor=1, zoom_factor=1.5)
+        self.pantool = PanTool(self.plot)
+        self.plot.tools.append(self.zoomtool)
+        self.plot.tools.append(self.pantool)
+        self.plot.y_axis.visible = False
+        for i in index:
+            self.plot.plot(('x', 'series%i'%(i+1)), type='line', line_width=0.5, color='black')[0]
+        self.plot.request_redraw()
+        self.old_y_scale = self.y_scale
         self.index_array = np.arange(len(self.fid.data))
         self.y_offsets = self.index_array * self.y_offset
         self.x_offsets = self.index_array * self.x_offset
-        self.data_selected = [0]
-        self.plot.padding = [0,0,0,35]
+        self.data_selected = index
         self.x_range_up = round(self.x[0], 3)
         self.x_range_dn = round(self.x[-1], 3)
-
+        
 
     def _x_range_btn_fired(self):
         if self.x_range_up < self.x_range_dn:
@@ -120,8 +129,13 @@ class DataPlotter(traits.HasTraits):
         self.plot.request_redraw()
 
     def set_x_range(self, up=x_range_up, dn=x_range_dn):
-        self.plot.index_range.high = up
-        self.plot.index_range.low = dn
+        if self.fid._ft:
+            self.plot.index_range.high = up
+            self.plot.index_range.low = dn
+        else:
+            self.plot.index_range.high = dn
+            self.plot.index_range.low = up
+        pass
 
     def _y_scale_changed(self):
         self.set_y_scale(scale=self.y_scale)
@@ -134,7 +148,10 @@ class DataPlotter(traits.HasTraits):
     def reset_plot(self):
         self.x_offset, self.y_offset = 0, 0
         self.y_scale = 1.0
-        self.plot.index_range.low, self.plot.index_range.high = [self.x[-1], self.x[0]]
+        if self.fid._ft:
+            self.plot.index_range.low, self.plot.index_range.high = [self.x[-1], self.x[0]]
+        else:
+            self.plot.index_range.low, self.plot.index_range.high = [self.x[0], self.x[-1]]
         self.plot.value_range.low = self.plot.data.arrays['series%i'%(self.data_selected[0]+1)].min()
         self.plot.value_range.high = self.plot.data.arrays['series%i'%(self.data_selected[0]+1)].max()
         #add pan resetting
@@ -228,6 +245,8 @@ class DataPlotter(traits.HasTraits):
             return
         self.fid.ft()
         self.update_plot_data_from_fid()
+        self.plot = Plot(self.plot_data, default_origin='bottom right', padding=[5, 0, 0, 35])
+        self.plot_init(index=self.data_selected)
         self.reset_plot()
 
     def _ph_auto_btn_fired(self):
@@ -254,7 +273,10 @@ class DataPlotter(traits.HasTraits):
             self.plot.plots['plot0'][0].color = 'black'
 
     def update_plot_data_from_fid(self, index=None):
-        self.x = np.linspace(self.fid.params['sw_left'], self.fid.params['sw_left']-self.fid.params['sw'], len(self.fid.data[0]))
+        if self.fid._ft:
+            self.x = np.linspace(self.fid.params['sw_left'], self.fid.params['sw_left']-self.fid.params['sw'], len(self.fid.data[0]))
+        else:
+            self.x = np.linspace(0, self.fid.params['at'], len(self.fid.data[0]))
         self.plot_data.set_data('x', self.x)
         if index == None:
             for i in self.index_array:
