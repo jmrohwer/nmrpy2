@@ -65,7 +65,6 @@ class PhaseDragTool(DragTool):
     p1 = 0.0
  
     def drag_start(self, event):
-        print self.drag_button
         self._start_xy = [event.x, event.y]
         event.handled = True
  
