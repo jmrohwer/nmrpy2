@@ -4,7 +4,7 @@
 import traits.api as traits
 from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler
 from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData
-from chaco.tools.api import PanTool, ZoomTool, BetterZoom
+from chaco.tools.api import PanTool, ZoomTool, BetterZoom, DragTool
 from enable.component_editor import ComponentEditor
 import numpy as np
 from traitsui.tabular_adapter import TabularAdapter
@@ -20,13 +20,17 @@ class TC_Handler(Handler):
 
     #called when any trait attribute value is changed
     def setattr(self, info, object, name, value):
+        #if object._manphasing and name != 'ph_man_btn':
+        #    print name, value
+        #    return
 
         Handler.setattr(self, info, object, name, value)
-        if name == 'ph_man_btn':
-            if not object._manphasing:
-                info.ph_man_btn.label = 'Manual'
-            elif object._manphasing:
-                info.ph_man_btn.label = 'Manual*'
+        #if name == 'ph_man_btn':
+        #    if not object._manphasing:
+        #        info.ph_man_btn.label = 'Manual'
+        #    elif object._manphasing:
+        #        info.ph_man_btn.label = 'Manual*'
+
 
         if name == 'ft_btn':
             if object.fid._ft:
@@ -46,12 +50,59 @@ class MultiSelectAdapter(TabularAdapter):
     # Magically named trait which gives the display text of the column named
     # 'myvalue'. This is done using a Traits Property and its getter:
     myvalue_text = traits.Property
-
     # The getter for Property 'myvalue_text' simply takes the value of the
     # corresponding item in the list being displayed in this table.
     # A more complicated example could format the item before displaying it.
     def _get_myvalue_text(self):
         return self.item
+
+class PhaseDragTool(DragTool):
+
+    end_drag_on_leave = True
+    # The mouse button that initiates the drag.
+    drag_button = traits.Enum('left', 'right') #WTF?!?!?!?!
+    p0 = 0.0
+    p1 = 0.0
+ 
+    def drag_start(self, event):
+        print self.drag_button
+        self._start_xy = [event.x, event.y]
+        event.handled = True
+ 
+    def drag_end(self, event):
+        plot = self.component
+        plot._data_complex = plot._data
+        self.p0 += self._p0
+        self.p1 += self._p1
+        event.handled = True
+ 
+    def drag_leave(self, event):
+        event.handled = True
+ 
+    def drag_cancel(self, event):
+        event.handled = True
+ 
+    def dragging(self, event):
+        plot = self.component
+        plot._data = plot._data_complex.copy()
+        self._current_xy = [event.x-self._start_xy[0], event.y-self._start_xy[1]]
+        self._p0, self._p1 = [0.0, 0.0]
+        if self.drag_button == 'left':
+            self._p0 += 100.0*self._current_xy[1]/plot.height
+            self._p1 += 100.0*self._current_xy[0]/plot.height
+        if self.drag_button == 'right':
+            self._p1 += self._current_xy[1]
+        plot._data = plot._ps(plot._data, p0=self._p0, p1=self._p1)
+        for i in range(len(plot._data)):
+            plot.data.set_data('series%i'%(plot._data_selected[i]+1), np.real(plot._data[i]))
+        plot.request_redraw()
+        event.handled = True
+ 
+    def normal_mouse_enter(self, event):
+        event.handled = True
+ 
+    def normal_mouse_leave(self, event):
+        event.handled = True
 
 class DataPlotter(traits.HasTraits):
     plot = traits.Instance(Plot) #the attribute 'plot' of class DataPlotter is a trait that has to be an instance of the chaco class Plot.
@@ -80,7 +131,10 @@ class DataPlotter(traits.HasTraits):
     ph_auto_btn = traits.Button(label='Auto: all')
     ph_auto_single_btn = traits.Button(label='Auto: selected')
     ph_man_btn = traits.Button(label='Manual')
+    ph_global = traits.Bool(label='apply globally')
     _manphasing = False
+
+
 
     def __init__(self, fid):
         super(DataPlotter, self).__init__()
@@ -105,6 +159,7 @@ class DataPlotter(traits.HasTraits):
             self.plot.x_axis.title = 'sec.'
         self.zoomtool = BetterZoom(self.plot, zoom_to_mouse=False, x_min_zoom_factor=1, zoom_factor=1.5)
         self.pantool = PanTool(self.plot)
+        self.phase_dragtool = PhaseDragTool(self.plot)
         self.plot.tools.append(self.zoomtool)
         self.plot.tools.append(self.pantool)
         self.plot.y_axis.visible = False
@@ -118,6 +173,10 @@ class DataPlotter(traits.HasTraits):
         self.data_selected = index
         self.x_range_up = round(self.x[0], 3)
         self.x_range_dn = round(self.x[-1], 3)
+        #this is necessary for phasing:
+        self.plot._ps = self.fid.ps
+        self.plot._data_complex = self.fid.data
+
         
 
     def _x_range_btn_fired(self):
@@ -186,12 +245,16 @@ class DataPlotter(traits.HasTraits):
 
     #for some mysterious reason, selecting new data to plot doesn't retain the plot offsets even if you set them explicitly
     def _data_selected_changed(self):
+        #check if we're in manphasing mode
+        if self._manphasing:
+            self.end_man_phasing()
+
         self.plot.delplot(*self.plot.plots)
         self.plot.request_redraw()
         for i in self.data_selected:
-            self.plot.plot(('x', 'series%i'%(i+1)), type='line', line_width=0.5, color='black')
-        self.reset_plot()
-
+            self.plot.plot(('x', 'series%i'%(i+1)), type='line', line_width=0.5, color='black', position=[self.x_offsets[i], self.y_offsets[i]]) #FIX: this isn't working
+        #self.reset_plot() # this is due to the fact that the plot automatically resets anyway
+        
     #processing buttons
 
     #plot the current apodisation function based on lb, and do apodisation
@@ -267,10 +330,37 @@ class DataPlotter(traits.HasTraits):
             return
         if not self._manphasing:
             self._manphasing = True
-            self.plot.plots['plot0'][0].color = 'red'
+            self.change_plot_colour(colour='red')
+            self.disable_plot_tools()
+            self.plot._data_selected = self.data_selected
+            self.plot._data_complex = self.fid.data[np.array(self.data_selected)]
+            self.plot.tools.append(PhaseDragTool(self.plot))
         elif self._manphasing:
-            self._manphasing = False
-            self.plot.plots['plot0'][0].color = 'black'
+            self.end_man_phasing()
+
+    def end_man_phasing(self):
+        self._manphasing = False
+        self.change_plot_colour(colour='black')
+        if self.ph_global:
+            self.fid.data = self.fid.ps(self.fid.data, p0=self.plot.tools[0].p0, p1=self.plot.tools[0].p1)
+            self.update_plot_data_from_fid()
+        else:    
+            for i, j in zip(self.plot._data_selected, self.plot._data_complex):
+                self.fid.data[i] = j 
+        self.disable_plot_tools()
+        self.enable_plot_tools()
+
+
+    def disable_plot_tools(self):
+        self.plot.tools = []
+
+    def enable_plot_tools(self):
+        self.plot.tools.append(self.zoomtool)
+        self.plot.tools.append(self.pantool)
+
+    def change_plot_colour(self, colour='black'):
+        for plot in self.plot.plots:
+            self.plot.plots[plot][0].color = colour
 
     def update_plot_data_from_fid(self, index=None):
         if self.fid._ft:
@@ -288,57 +378,59 @@ class DataPlotter(traits.HasTraits):
 
     def default_traits_view(self):
         traits_view = View(Group(
-                            Group(
-                                Item('data_index',
-                                      editor     = TabularEditor(
-                                                       show_titles  = False,
-                                                       selected     = 'data_selected',
-                                                       editable     = False,
-                                                       multi_select = True,
-                                                       adapter      = MultiSelectAdapter()),
-                                width=0.02, show_label=False, has_focus=True),
-                                Item(   'plot',
-                                        editor=ComponentEditor(),
-                                        show_label=False),
-                                        padding=0,
-                                        show_border=False,
-                                        orientation='horizontal'),
-                            Group(Group(Group(
-                                    Item('select_all_btn', show_label=False),
-                                    Item('select_none_btn', show_label=False),
-                                    Item('reset_plot_btn', show_label=False),
-                                    orientation='vertical'),
-                                  Group(
-                                    Item('y_offset'),
-                                    Item('x_offset'),
-                                    Item('y_scale', show_label=True),
+                                Group(
+                                    Item('data_index',
+                                          editor     = TabularEditor(
+                                                           show_titles  = False,
+                                                           selected     = 'data_selected',
+                                                           editable     = False,
+                                                           multi_select = True,
+                                                           adapter      = MultiSelectAdapter()),
+                                    width=0.02, show_label=False, has_focus=True),
+                                    Item(   'plot',
+                                            editor=ComponentEditor(),
+                                            show_label=False),
+                                            padding=0,
+                                            show_border=False,
+                                            orientation='horizontal'),
+                                Group(
                                     Group(
-                                    Item('x_range_btn', show_label=False),
-                                    Item('x_range_up', show_label=False),
-                                    Item('x_range_dn', show_label=False), orientation='horizontal'),
-                                    orientation='vertical'), orientation='horizontal', show_border=True, label='Plotting'),
-                                  Group(
+                                        Group(
+                                            Item('select_all_btn', show_label=False),
+                                            Item('select_none_btn', show_label=False),
+                                            Item('reset_plot_btn', show_label=False),
+                                            orientation='vertical'),
+                                        Group(
+                                            Item('y_offset'),
+                                            Item('x_offset'),
+                                            Item('y_scale', show_label=True),
+                                            Group(
+                                            Item('x_range_btn', show_label=False),
+                                            Item('x_range_up', show_label=False),
+                                            Item('x_range_dn', show_label=False), orientation='horizontal'),
+                                            orientation='vertical'), orientation='horizontal', show_border=True, label='Plotting'),
                                     Group(
-                                    Item('lb', show_label=False, format_str='%.2f Hz'),
-                                    Item('lb_btn', show_label=False),
-                                    Item('lb_plt_btn', show_label=False),
-                                    orientation='horizontal'),
-                                    Group(
-                                    Item('zf_btn', show_label=False),
-                                    Item('ft_btn', show_label=False),
-                                    orientation='horizontal'),
-                                  Group(
-                                    Item('ph_auto_btn', show_label=False),
-                                    Item('ph_auto_single_btn', show_label=False),
-                                    Item('ph_man_btn', show_label=False),
-                                    orientation='horizontal',
-                                    show_border=True,
-                                    label='Phase correction'),
-                                    show_border=True, label='Processing'
-                                    ),
-                                    show_border=True,
+                                        Group(
+                                            Item('lb', show_label=False, format_str='%.2f Hz'),
+                                            Item('lb_btn', show_label=False),
+                                            Item('lb_plt_btn', show_label=False),
+                                            orientation='horizontal'),
+                                            Group(
+                                            Item('zf_btn', show_label=False),
+                                            Item('ft_btn', show_label=False),
+                                            orientation='horizontal'),
+                                        Group(
+                                            Item('ph_auto_btn', show_label=False),
+                                            Item('ph_auto_single_btn', show_label=False),
+                                            Item('ph_man_btn', show_label=False),
+                                            Item('ph_global', show_label=True),
+                                            orientation='horizontal',
+                                            show_border=True,
+                                            label='Phase correction'),
+                                            show_border=True, label='Processing'),
+                                        show_border=True,
                                     orientation='horizontal')
-                                    ),
+                                        ),
                             width=1.0,
                             height=0.8,
                             resizable=True,
