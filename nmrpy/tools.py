@@ -4,12 +4,12 @@
 import traits.api as traits
 from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler
 from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData
-from chaco.tools.api import PanTool, ZoomTool, BetterZoom, DragTool
+from chaco.tools.api import PanTool, ZoomTool, BetterZoom, DragTool, RangeSelection, LineInspector, RangeSelectionOverlay
 from enable.component_editor import ComponentEditor
 import numpy as np
 from traitsui.tabular_adapter import TabularAdapter
 from matplotlib import cm
-
+from enable.api import KeySpec
 
 class TC_Handler(Handler):
 
@@ -103,14 +103,28 @@ class PhaseDragTool(DragTool):
     def normal_mouse_leave(self, event):
         event.handled = True
 
+class BlSelectTool(RangeSelection):
+    bl_selections = traits.List()
+
+    def normal_left_down(self, event):
+        pass
+
+    def selected_left_down(self, event):
+        pass
+
+    def selecting_right_up(self, event):
+        self.bl_selections.append(self.selection)
+        self.event_state = 'selected'
+
+
 class DataPlotter(traits.HasTraits):
     plot = traits.Instance(Plot) #the attribute 'plot' of class DataPlotter is a trait that has to be an instance of the chaco class Plot.
     plot_data = traits.Instance(ArrayPlotData)
     data_index = traits.List(traits.Int)
     data_selected = traits.List(traits.Int)
 
-    y_offset = traits.Range(0.0,50.0, value=0)
-    x_offset = traits.Range(-15.0,15.0, value=0)
+    y_offset = traits.Range(0.0,20.0, value=0)
+    x_offset = traits.Range(-10.0,10.0, value=0)
     y_scale = traits.Range(1e-3,2.0, value=1.0)
     x_range_up = traits.Float()
     x_range_dn = traits.Float()
@@ -132,7 +146,15 @@ class DataPlotter(traits.HasTraits):
     ph_man_btn = traits.Button(label='Manual')
     ph_global = traits.Bool(label='apply globally')
     _manphasing = False
+    _bl_selecting = False 
 
+
+    bl_cor_btn = traits.Button(label='BL correct')
+    bl_sel_btn = traits.Button(label='Select points')
+
+#    def _metadata_handler(self):                                                                                                
+#        blah = self.index_datasource.metadata#.get('selections')
+#        print blah
 
 
     def __init__(self, fid):
@@ -175,7 +197,12 @@ class DataPlotter(traits.HasTraits):
         #this is necessary for phasing:
         self.plot._ps = self.fid.ps
         self.plot._data_complex = self.fid.data
-
+        
+#        my_plot = self.plot.plots["plot0"][0]
+#        # Set up the trait handler for the selection       
+#        self.index_datasource = my_plot.index
+#        self.index_datasource.on_trait_change(self._metadata_handler,
+#                                         "metadata_changed")
         
 
     def _x_range_btn_fired(self):
@@ -350,6 +377,9 @@ class DataPlotter(traits.HasTraits):
         self.enable_plot_tools()
 
 
+    def remove_extra_overlays(self):
+        self.plot.overlays = [self.plot.overlays[0]]
+
     def disable_plot_tools(self):
         self.plot.tools = []
 
@@ -360,6 +390,52 @@ class DataPlotter(traits.HasTraits):
     def change_plot_colour(self, colour='black'):
         for plot in self.plot.plots:
             self.plot.plots[plot][0].color = colour
+
+    def _bl_sel_btn_fired(self):
+        if not self.fid._ft:
+            return
+        if self._bl_selecting:
+            self.end_bl_select()
+        else:
+            self._bl_selecting = True
+            self.plot.plot(('x', 'series%i'%(self.data_selected[0]+1)), name='bl_plot', type='scatter', alpha=0.5, line_width=0, selection_line_width=0, marker_size=2, selection_marker_size=2, selection_color='red', color='black')[0]
+            #self.change_plot_colour(colour='red')
+            self.disable_plot_tools()
+            self.plot.tools.append(BlSelectTool(self.plot.plots['plot0'][0],
+                                            left_button_selects=True,
+                                            metadata_name='selections',
+                                            append_key=KeySpec(None, 'control')))
+            self.plot.overlays.append(RangeSelectionOverlay(component=self.plot.plots['bl_plot'][0],
+                                            metadata_name='selections',
+                                            axis='index',
+                                            fill_color="blue"))
+            self.plot.overlays.append(LineInspector(component=self.plot,
+                                                 axis='index_x',
+                                                 inspect_mode="indexed",
+                                                 write_metadata=True,
+                                                 color="blue"))
+
+    def end_bl_select(self):
+        self._bl_selecting = False
+        self._bl_ranges = self.plot.tools[0].bl_selections
+        self._bl_indices = []
+        for i, j   in self._bl_ranges:
+            print i, j
+            self._bl_indices.append((i < self.x) * (self.x < j))
+        self.fid.bl_points = np.where(sum(self._bl_indices, 0)==1)[0]
+        self.plot.delplot('bl_plot')
+        self.plot.request_redraw()
+        self.remove_extra_overlays()
+        self.disable_plot_tools()
+        self.enable_plot_tools()
+
+    def _bl_cor_btn_fired(self):
+        if not self.fid._ft:
+            return
+        if self._bl_selecting:
+            self.end_bl_select()
+        self.fid.bl_fit() 
+        self.update_plot_data_from_fid() 
 
     def update_plot_data_from_fid(self, index=None):
         if self.fid._ft:
@@ -418,6 +494,12 @@ class DataPlotter(traits.HasTraits):
                                             Item('zf_btn', show_label=False),
                                             Item('ft_btn', show_label=False),
                                             orientation='horizontal'),
+                                        Group(
+                                            Item('bl_cor_btn', show_label=False),
+                                            Item('bl_sel_btn', show_label=False),
+                                            orientation='horizontal',
+                                            show_border=True,
+                                            label='Baseline correction'),
                                         Group(
                                             Item('ph_auto_btn', show_label=False),
                                             Item('ph_auto_single_btn', show_label=False),
