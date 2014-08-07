@@ -134,13 +134,14 @@ class DataPlotter(traits.HasTraits):
     select_all_btn = traits.Button(label='All')
     select_none_btn = traits.Button(label='None')
 
-    #processing
+    #basic processing
     lb = traits.Float(10.0)
     lb_btn = traits.Button(label='Apodisation')
     lb_plt_btn = traits.Button(label='Plot Apod.')
     zf_btn = traits.Button(label='Zero-fill')
     ft_btn = traits.Button(label='FT')
 
+    #phasing
     ph_auto_btn = traits.Button(label='Auto: all')
     ph_auto_single_btn = traits.Button(label='Auto: selected')
     ph_man_btn = traits.Button(label='Manual')
@@ -148,9 +149,14 @@ class DataPlotter(traits.HasTraits):
     _manphasing = False
     _bl_selecting = False 
 
-
+    #baseline correctoin
     bl_cor_btn = traits.Button(label='BL correct')
     bl_sel_btn = traits.Button(label='Select points')
+
+    #peak-picking
+    peak_pick_btn = traits.Button(label='Peak-picking')
+    deconvolute_btn = traits.Button(label='Deconvolute')
+ 
 
 #    def _metadata_handler(self):                                                                                                
 #        blah = self.index_datasource.metadata#.get('selections')
@@ -508,6 +514,12 @@ class DataPlotter(traits.HasTraits):
                                             orientation='horizontal',
                                             show_border=True,
                                             label='Phase correction'),
+                                        Group(
+                                            Item('peak_pick_btn', show_label=False),
+                                            Item('deconvolute_btn', show_label=False),
+                                            orientation='horizontal',
+                                            show_border=True,
+                                            label='Peak-picking and deconvolution'),
                                             show_border=True, label='Processing'),
                                         show_border=True,
                                     orientation='horizontal')
