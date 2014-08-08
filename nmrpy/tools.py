@@ -3,7 +3,7 @@
 #from traits.api import HasTraits, Instance, Enum, Range, List, Int, Array
 import traits.api as traits
 from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler
-from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData
+from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData, DataLabel
 from chaco.tools.api import PanTool, ZoomTool, BetterZoom, DragTool, RangeSelection, LineInspector, RangeSelectionOverlay
 from enable.component_editor import ComponentEditor
 import numpy as np
@@ -116,6 +116,22 @@ class BlSelectTool(RangeSelection):
         self.bl_selections.append(self.selection)
         self.event_state = 'selected'
 
+class PeakPicker(LineInspector):
+    peaks = []
+    
+class PeakSelectTool(RangeSelection):
+    _peaks = traits.List()
+    _ranges = traits.List()
+
+    def normal_left_down(self, event):
+        self._peaks.append(event.x)
+
+    def selecting_right_up(self, event):
+        self._ranges.append(list(self.selection))
+        self.event_state = 'selected'
+
+
+
 
 class DataPlotter(traits.HasTraits):
     plot = traits.Instance(Plot) #the attribute 'plot' of class DataPlotter is a trait that has to be an instance of the chaco class Plot.
@@ -155,12 +171,24 @@ class DataPlotter(traits.HasTraits):
 
     #peak-picking
     peak_pick_btn = traits.Button(label='Peak-picking')
-    deconvolute_btn = traits.Button(label='Deconvolute')
- 
+    deconvolute_btn = traits.Button(label='Deconvolute') 
 
-#    def _metadata_handler(self):                                                                                                
-#        blah = self.index_datasource.metadata#.get('selections')
-#        print blah
+    def _metadata_handler(self):                                                                                                
+        return #print self.metadata_source.metadata.get('selections')
+
+    def _peak_handler(self):                                                                                                
+        if self.fid.peaks != self.picking_tool._peaks and self.picking_tool._peaks: 
+            self.fid.peaks = self.picking_tool._peaks
+            peak_ppm = self.fid.params['sw_left']-(self.fid.peaks[-1]-self.plot.padding_left)/self.plot.width*self.fid.params['sw']
+            self.plot_marker(peak_ppm)
+        if self.fid.ranges != self.picking_tool._ranges and self.picking_tool._ranges: 
+            range_ppm = np.array(self.picking_tool._ranges[-1])+float(self.plot.padding_left)/self.plot.width*self.fid.params['sw']
+#            range_index = [int(i)+self.plot.padding_left for i in (range_ppm + np.abs(self.fid.params['sw_left']-self.fid.params['sw']))/self.fid.params['sw'] * len(self.x)]
+#            range_ppm = [self.fid.params['sw_left']-(i-self.plot.padding_left)/self.plot.width*self.fid.params['sw'] for i in range_index]
+            self.fid.ranges.append(list(range_ppm))
+            self.plot_marker(range_ppm[0])
+            self.plot_marker(range_ppm[1])
+
 
 
     def __init__(self, fid):
@@ -203,13 +231,20 @@ class DataPlotter(traits.HasTraits):
         #this is necessary for phasing:
         self.plot._ps = self.fid.ps
         self.plot._data_complex = self.fid.data
-        
-#        my_plot = self.plot.plots["plot0"][0]
-#        # Set up the trait handler for the selection       
-#        self.index_datasource = my_plot.index
-#        self.index_datasource.on_trait_change(self._metadata_handler,
-#                                         "metadata_changed")
-        
+
+    def plot_marker(self, ppm):
+        dl = DataLabel(self.plot.plots['plot0'][0], 
+                            data_point=(ppm,0.0),
+                            arrow_color='red',
+                            arrow_size=10,
+                            label_position="top", 
+                            label_format='%(x).3f',
+                            padding_bottom=int(self.plot.height*0.1),
+                            marker_visible=False,
+                            border_visible=False,
+                            arrow_visible=True)
+        self.plot.plots['plot0'][0].overlays.append(dl)
+        self.plot.request_redraw()
 
     def _x_range_btn_fired(self):
         if self.x_range_up < self.x_range_dn:
@@ -404,7 +439,16 @@ class DataPlotter(traits.HasTraits):
             self.end_bl_select()
         else:
             self._bl_selecting = True
-            self.plot.plot(('x', 'series%i'%(self.data_selected[0]+1)), name='bl_plot', type='scatter', alpha=0.5, line_width=0, selection_line_width=0, marker_size=2, selection_marker_size=2, selection_color='red', color='black')[0]
+            self.plot.plot(('x', 'series%i'%(self.data_selected[0]+1)), 
+                            name='bl_plot', 
+                            type='scatter', 
+                            alpha=0.5,
+                            line_width=0, 
+                            selection_line_width=0, 
+                            marker_size=2, 
+                            selection_marker_size=2, 
+                            selection_color='red', 
+                            color='black')[0]
             #self.change_plot_colour(colour='red')
             self.disable_plot_tools()
             self.plot.tools.append(BlSelectTool(self.plot.plots['plot0'][0],
@@ -442,6 +486,36 @@ class DataPlotter(traits.HasTraits):
             self.end_bl_select()
         self.fid.bl_fit() 
         self.update_plot_data_from_fid() 
+
+    def _peak_pick_btn_fired(self):
+        if not self.fid._ft:
+            return
+        self._picking = True
+        
+        self.disable_plot_tools()
+        self.plot.overlays.append(PeakPicker(component=self.plot,
+                                             axis='index_x',
+                                             inspect_mode="indexed",
+                                             metadata_name='peaks',
+                                             write_metadata=True,
+                                             color="blue"))
+        self.plot.tools.append(PeakSelectTool(self.plot.plots['plot0'][0],
+                                        left_button_selects=True,
+                                        #metadata_name='selections',
+                                        append_key=KeySpec(None, 'control')))
+        self.plot.overlays.append(RangeSelectionOverlay(component=self.plot.plots['plot0'][0],
+                                        metadata_name='selections',
+                                        axis='index',
+                                            fill_color="blue"))
+
+        # Set up the trait handler for range selection       
+        #self.metadata_source = self.plot.plots['plot0'][0].index#self.plot.tools[0]
+        #self.metadata_source.on_trait_change(self._metadata_handler, "metadata_changed")
+
+        # Set up the trait handler for peak/range selections
+        self.picking_tool = self.plot.tools[0]
+        #self.picking_tool.on_trait_change(self._peak_handler)#, name='_peaks') #"_selection")
+        self.picking_tool.on_trait_change(self._peak_handler)#, name='_ranges') #"_selection") #this doesn't signal the handler for some reason
 
     def update_plot_data_from_fid(self, index=None):
         if self.fid._ft:
