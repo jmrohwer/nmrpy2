@@ -1,6 +1,6 @@
 
 
-#from traits.api import HasTraits, Instance, Enum, Range, List, Int, Array
+from traits.api import on_trait_change
 import traits.api as traits
 from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler
 from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData, DataLabel
@@ -118,19 +118,25 @@ class BlSelectTool(RangeSelection):
 
 class PeakPicker(LineInspector):
     peaks = []
-    
+
 class PeakSelectTool(RangeSelection):
     _peaks = traits.List()
     _ranges = traits.List()
+    peaks = []
+    ranges = []
 
     def normal_left_down(self, event):
-        self._peaks.append(event.x)
+        self.peaks.append(event.x)
+        self._peaks = self.peaks
 
     def selecting_right_up(self, event):
-        self._ranges.append(list(self.selection))
+        self.ranges.append(list(self.selection))
+        self._ranges = self.ranges
         self.event_state = 'selected'
 
-
+    #@on_trait_change('_peaks') 
+    #def dosummin(self):
+    #    print self._peaks    
 
 
 class DataPlotter(traits.HasTraits):
@@ -164,6 +170,7 @@ class DataPlotter(traits.HasTraits):
     ph_global = traits.Bool(label='apply globally')
     _manphasing = False
     _bl_selecting = False 
+    _picking = False 
 
     #baseline correctoin
     bl_cor_btn = traits.Button(label='BL correct')
@@ -173,21 +180,21 @@ class DataPlotter(traits.HasTraits):
     peak_pick_btn = traits.Button(label='Peak-picking')
     deconvolute_btn = traits.Button(label='Deconvolute') 
 
-    def _metadata_handler(self):                                                                                                
-        return #print self.metadata_source.metadata.get('selections')
+    #def _metadata_handler(self):                                                                                                
+        #return #print self.metadata_source.metadata.get('selections')
 
-    def _peak_handler(self):                                                                                                
+    def _peak_handler(self):
         if self.fid.peaks != self.picking_tool._peaks and self.picking_tool._peaks: 
+            print self.picking_tool._peaks
             self.fid.peaks = self.picking_tool._peaks
             peak_ppm = self.fid.params['sw_left']-(self.fid.peaks[-1]-self.plot.padding_left)/self.plot.width*self.fid.params['sw']
             self.plot_marker(peak_ppm)
-        if self.fid.ranges != self.picking_tool._ranges and self.picking_tool._ranges: 
+        if self.fid.ranges != self.picking_tool._ranges and self.picking_tool._ranges:
+            print self.picking_tool._ranges
             range_ppm = np.array(self.picking_tool._ranges[-1])+float(self.plot.padding_left)/self.plot.width*self.fid.params['sw']
-#            range_index = [int(i)+self.plot.padding_left for i in (range_ppm + np.abs(self.fid.params['sw_left']-self.fid.params['sw']))/self.fid.params['sw'] * len(self.x)]
-#            range_ppm = [self.fid.params['sw_left']-(i-self.plot.padding_left)/self.plot.width*self.fid.params['sw'] for i in range_index]
             self.fid.ranges.append(list(range_ppm))
-            self.plot_marker(range_ppm[0])
-            self.plot_marker(range_ppm[1])
+            self.range_marker(range_ppm[0], colour='blue')
+            self.range_marker(range_ppm[1], colour='blue')
 
 
 
@@ -232,10 +239,10 @@ class DataPlotter(traits.HasTraits):
         self.plot._ps = self.fid.ps
         self.plot._data_complex = self.fid.data
 
-    def plot_marker(self, ppm):
+    def plot_marker(self, ppm, colour='red'):
         dl = DataLabel(self.plot.plots['plot0'][0], 
                             data_point=(ppm,0.0),
-                            arrow_color='red',
+                            arrow_color=colour,
                             arrow_size=10,
                             label_position="top", 
                             label_format='%(x).3f',
@@ -246,6 +253,19 @@ class DataPlotter(traits.HasTraits):
         self.plot.plots['plot0'][0].overlays.append(dl)
         self.plot.request_redraw()
 
+    def range_marker(self, ppm, colour='blue'):
+        dl = DataLabel(self.plot.plots['plot0'][0], 
+                            data_point=(ppm,0.0),
+                            arrow_color=colour,
+                            arrow_size=10,
+                            label_position="top", 
+                            label_format='%(x).3f',
+                            padding_bottom=int(self.plot.height*0.25),
+                            marker_visible=False,
+                            border_visible=False,
+                            arrow_visible=True)
+        self.plot.plots['plot0'][0].overlays.append(dl)
+        self.plot.request_redraw()
     def _x_range_btn_fired(self):
         if self.x_range_up < self.x_range_dn:
             xr = self.x_range_up
@@ -490,8 +510,13 @@ class DataPlotter(traits.HasTraits):
     def _peak_pick_btn_fired(self):
         if not self.fid._ft:
             return
-        self._picking = True
-        
+        if self._picking:
+            self.end_picking()
+            return
+        else:
+            self._picking = True
+
+        self.reset_plot()        
         self.disable_plot_tools()
         self.plot.overlays.append(PeakPicker(component=self.plot,
                                              axis='index_x',
@@ -515,7 +540,18 @@ class DataPlotter(traits.HasTraits):
         # Set up the trait handler for peak/range selections
         self.picking_tool = self.plot.tools[0]
         #self.picking_tool.on_trait_change(self._peak_handler)#, name='_peaks') #"_selection")
-        self.picking_tool.on_trait_change(self._peak_handler)#, name='_ranges') #"_selection") #this doesn't signal the handler for some reason
+        self.picking_tool.on_trait_change(self._peak_handler, name=['_peaks', '_ranges']) #"_selection") #this doesn't signal the handler for some reason
+
+    def end_picking(self):
+        self._picking = False
+        self.plot.overlays = []
+        self._peak_marker_overlays = self.plot.plots['plot0'][0].overlays
+        self.plot.plots['plot0'][0].overlays = []
+        self.disable_plot_tools()
+        self.enable_plot_tools()
+        self.plot.request_redraw()
+
+
 
     def update_plot_data_from_fid(self, index=None):
         if self.fid._ft:
