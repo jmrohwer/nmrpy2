@@ -72,7 +72,8 @@ class FID_array(object):
 
     @data.setter
     def data(self, value):
-        value = np.array(value)
+        if type(value) is list:
+            value = np.array(value)
         #if len(value) <= 1:
         #    raise ValueError('FID data must be an iterable: %s'%str(value))
         if len(value.shape) == 1:
@@ -414,7 +415,7 @@ class FID_array(object):
         if filename is not None: fig_all.savefig(filename,format='pdf')
         show()
 
-    def plot_fid(self,index=0, sw_left=None, lw=0.7,x_label='ppm', y_label=None, labels='peaks', label_distance_frac=0.07, filename=None):
+    def plot_fid(self,index=0, sw_left=None, lw=0.5,x_label='ppm', y_label=None, labels='peaks', label_distance_frac=0.07, filename=None):
         """Plot an FID.
 
         Keyword arguments:
@@ -524,8 +525,10 @@ class FID_array(object):
         Note: left-click - phase p0, right-click - phase p1.
         """
         if np.sum(np.iscomplex(self.data) == False) > 0:
-            print "Cannot perform phase correction on non-imaginary data."
-            return
+            for i in self.data[np.iscomplex(self.data) == False]: #as np.iscomplex returns False for 0+0j, we need to check manually
+                if type(i) != np.complex128:
+                    print "Cannot perform phase correction on non-imaginary data."
+                    return
         if norm:
             self.data = self.data/self.data.max()
         self.phases = []
@@ -566,8 +569,10 @@ class FID_array(object):
             discard_imaginary -- discards imaginary component of complex values after phasing
         """
         if np.sum(np.iscomplex(self.data) == False) > 0:
-            print "Cannot perform phase correction on non-imaginary data."
-            return
+            for i in self.data[np.iscomplex(self.data) == False]: #as np.iscomplex returns False for 0+0j, we need to check manually
+                if type(i) != np.complex128:
+                    print "Cannot perform phase correction on non-imaginary data."
+                    return
 
         if method == 'area':
             if mp:
