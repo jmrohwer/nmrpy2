@@ -186,17 +186,23 @@ class DataPlotter(traits.HasTraits):
     def _peak_handler(self):
         if self.fid.peaks != self.picking_tool._peaks and self.picking_tool._peaks: 
             print self.picking_tool._peaks
-            self.fid.peaks = self.picking_tool._peaks
-            peak_ppm = self.fid.params['sw_left']-(self.fid.peaks[-1]-self.plot.padding_left)/self.plot.width*self.fid.params['sw']
+            self.fid.peaks = self.index2ppm(np.array(self.picking_tool._peaks))
+            peak_ppm = self.fid.peaks[-1]
             self.plot_marker(peak_ppm)
         if self.fid.ranges != self.picking_tool._ranges and self.picking_tool._ranges:
             print self.picking_tool._ranges
-            range_ppm = np.array(self.picking_tool._ranges[-1])+float(self.plot.padding_left)/self.plot.width*self.fid.params['sw']
-            self.fid.ranges.append(list(range_ppm))
+            #range_ppm = np.array(self.picking_tool._ranges[-1])+float(self.plot.padding_left)/self.plot.width*self.fid.params['sw']
+            #self.fid.ranges.append(list(range_ppm))
+            self.fid.ranges = self.picking_tool._ranges
+            range_ppm = self.correct_padding(self.fid.ranges[-1])
             self.range_marker(range_ppm[0], colour='blue')
             self.range_marker(range_ppm[1], colour='blue')
 
+    def index2ppm(self, index):
+            return self.fid.params['sw_left']-(index-self.plot.padding_left)/self.plot.width*self.fid.params['sw']
 
+    def correct_padding(self, values):
+        return np.array(values)+float(self.plot.padding_left)/self.plot.width*self.fid.params['sw']
 
     def __init__(self, fid):
         super(DataPlotter, self).__init__()
@@ -544,6 +550,9 @@ class DataPlotter(traits.HasTraits):
 
     def end_picking(self):
         self._picking = False
+        #two corrections for plot padding offset in ranges and reshaping peaks according to ranges (required by fid.deconv())
+        self.fid.ranges = [self.correct_padding(i) for i in self.fid.ranges]
+        self.fid.peaks = [[peak for peak in self.fid.peaks if peak > peak_range[0] and peak < peak_range[1]] for peak_range in self.fid.ranges]
         self.plot.overlays = []
         self._peak_marker_overlays = self.plot.plots['plot0'][0].overlays
         self.plot.plots['plot0'][0].overlays = []
@@ -551,7 +560,12 @@ class DataPlotter(traits.HasTraits):
         self.enable_plot_tools()
         self.plot.request_redraw()
 
-
+    def _deconvolute_btn_fired(self):
+        if self._picking:
+            self.end_picking()
+        print 'Imaginary components discarded.'
+        self.fid.real()
+        self.fid.deconv(gl=0)
 
     def update_plot_data_from_fid(self, index=None):
         if self.fid._ft:

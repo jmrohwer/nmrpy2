@@ -345,7 +345,7 @@ class FID_array(object):
                 if ppm[0]>labels[i]>ppm[-1]:
                     xlbl = np.where(abs(labels[i]-ppm)==abs(labels[i]-ppm).min())[0][0]
                     ax_all.plot((xlbl,xlbl),(acqtime[-1],acqtime[-1]),(data_ft[-1][xlbl]+0.1,data_ft[-1][xlbl]+0.2),'k',linewidth=1)
-                    ax_all.text(xlbl-0.009*abs(right-left),acqtime[-1],data_ft[-1][xlbl]+0.3, i, zdir=(1,0,0),rotation_mode='anchor',fontsize=fs)
+                    ax_all.text(xlbl-0.009*abs(right-left),acqtime[-1], data_ft[-1][xlbl] + 0.2*max(data_ft[-1]), i, zdir=(1,0,0),rotation_mode='anchor',fontsize=fs)
         #----------------------------
 
         ax_all.set_xlim3d(x[0],x[-1])
@@ -399,13 +399,13 @@ class FID_array(object):
         xcor = (xts[1][1]-xts[1][0])/2
         for i in zip(xts[0],xts[1]):
             ax_all.plot((i[1],i[1]),(acqtime[0],acqtime[0]),(-0.01,-0.05),'k',linewidth=1)
-            ax_all.text(i[1],acqtime[0],-0.24, i[0], zdir=(1,0,0),ha='center',rotation_mode='anchor',fontsize=10)
+            ax_all.text(i[1],-0.2*acqtime[-1], -0.2*ax_all.get_ylim()[-1], i[0], zdir=(1,0,0),ha='center',rotation_mode='anchor',fontsize=10)
 
         yts = acqtime[np.array([0,-1])].round(1)
         for i in yts:
             ax_all.text(-0.05*data_ft.shape[1],i,0,i,zdir=(1,0,0),ha='right',rotation_mode='anchor',fontsize=10)
 
-        ax_all.text(-0.05*data_ft.shape[1],acqtime[-1]/2,0,y_label,zdir=(0,1,0),ha='center',rotation_mode='anchor',fontsize=10)
+        ax_all.text(-0.05*data_ft.shape[1],acqtime[-1]/2,0,y_label, zdir=(1,0,0),ha='center',rotation_mode='anchor',fontsize=10)
         if y_space == None:     y_space = -0.4*acqtime[-1]
         ax_all.text(0.5*data_ft.shape[1],y_space,0,x_label,zdir=(1,0,0),ha='center',rotation_mode='anchor',fontsize=10)
         ax_all.set_xlim3d(x[0],x[-1])
@@ -439,6 +439,7 @@ class FID_array(object):
             sw_left = self.params['sw_left']
         fig = figure(figsize=[15,6])
         ax1 = fig.add_subplot(111)
+        label_index = 0
         if len(self.data.shape) == 2:
             ppm = np.mgrid[sw_left-self.params['sw']:sw_left:complex(len(self.data[0]))]
             if type(index) == int:
@@ -456,10 +457,11 @@ class FID_array(object):
                 if ppm[0]<labels[i]<ppm[-1]:
                     xlbl = len(self.data[label_index])-np.where(abs(labels[i]-ppm)==abs(labels[i]-ppm).min())[0][0]
                     ax1.plot((labels[i], labels[i]), (self.data[label_index][xlbl]+label_distance_frac/3.0*lbl_gap, self.data[label_index][xlbl]+2/3.*label_distance_frac*lbl_gap), color='0.5')
-                    ax1.text(labels[i], self.data[label_index][xlbl]+label_distance_frac*lbl_gap, i, ha='center')
+                    ax1.text(labels[i], self.data[label_index][xlbl]+0.2*lbl_gap, i, ha='center')
         #----------------------------
         ax1.set_xlim([ppm[-1], ppm[0]])
         ax1.set_xlabel(x_label)
+        ax1.set_yticklabels([])
         if y_label is not None: ax1.set_ylabel(y_label)
         if filename is not None: fig.savefig(filename,format='pdf')
         show()
