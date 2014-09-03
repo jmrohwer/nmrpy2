@@ -1,5 +1,3 @@
-
-
 from traits.api import on_trait_change
 import traits.api as traits
 from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler, RangeEditor
@@ -171,6 +169,7 @@ class DataPlotter(traits.HasTraits):
     _manphasing = False
     _bl_selecting = False 
     _picking = False 
+    _peak_marker_overlays = []
 
     #baseline correctoin
     bl_cor_btn = traits.Button(label='BL correct')
@@ -178,6 +177,7 @@ class DataPlotter(traits.HasTraits):
 
     #peak-picking
     peak_pick_btn = traits.Button(label='Peak-picking')
+    peak_pick_clear = traits.Button(label='Clear peaks')
     deconvolute_btn = traits.Button(label='Deconvolute') 
     lorgau = traits.Range(0.0,1.0, value=0, label='Lorentzian = 0, Gaussian = 1')
 
@@ -186,14 +186,10 @@ class DataPlotter(traits.HasTraits):
 
     def _peak_handler(self):
         if self.fid.peaks != self.picking_tool._peaks and self.picking_tool._peaks: 
-            print self.picking_tool._peaks
             self.fid.peaks = self.index2ppm(np.array(self.picking_tool._peaks))
             peak_ppm = self.fid.peaks[-1]
             self.plot_marker(peak_ppm)
         if self.fid.ranges != self.picking_tool._ranges and self.picking_tool._ranges:
-            print self.picking_tool._ranges
-            #range_ppm = np.array(self.picking_tool._ranges[-1])+float(self.plot.padding_left)/self.plot.width*self.fid.params['sw']
-            #self.fid.ranges.append(list(range_ppm))
             self.fid.ranges = self.picking_tool._ranges
             range_ppm = self.correct_padding(self.fid.ranges[-1])
             self.range_marker(range_ppm[0], colour='blue')
@@ -523,7 +519,9 @@ class DataPlotter(traits.HasTraits):
         else:
             self._picking = True
 
-        self.reset_plot()        
+        self.reset_plot()
+        if self._peak_marker_overlays:
+            self.plot.plots['plot0'][0].overlays = self._peak_marker_overlays
         self.disable_plot_tools()
         self.plot.overlays.append(PeakPicker(component=self.plot,
                                              axis='index_x',
@@ -554,12 +552,28 @@ class DataPlotter(traits.HasTraits):
         #two corrections for plot padding offset in ranges and reshaping peaks according to ranges (required by fid.deconv())
         self.fid.ranges = [self.correct_padding(i) for i in self.fid.ranges]
         self.fid.peaks = [[peak for peak in self.fid.peaks if peak > peak_range[0] and peak < peak_range[1]] for peak_range in self.fid.ranges]
+        filled_ranges = [i for i in range(len(self.fid.peaks)) if self.fid.peaks[i]]
+        self.fid.peaks = [self.fid.peaks[i] for i in filled_ranges]
+        self.fid.ranges = [self.fid.ranges[i] for i in filled_ranges]
+                
+                
         self.plot.overlays = []
         self._peak_marker_overlays = self.plot.plots['plot0'][0].overlays
         self.plot.plots['plot0'][0].overlays = []
         self.disable_plot_tools()
         self.enable_plot_tools()
         self.plot.request_redraw()
+
+    def _peak_pick_clear_fired(self):
+        if self._picking:
+            self.end_picking()
+        self.peaks = []
+        self.ranges = []
+        self._peak_marker_overlays = []
+        print 'Selected peaks and ranges cleared.'
+
+
+
 
     def _deconvolute_btn_fired(self):
         if self._picking:
@@ -650,6 +664,7 @@ class DataPlotter(traits.HasTraits):
                                             label='Phase correction'),
                                         Group(
                                             Item('peak_pick_btn', show_label=False),
+                                            Item('peak_pick_clear', show_label=False),
                                             Item('deconvolute_btn', show_label=False),
                                             Item('lorgau', show_label=False, editor=RangeEditor(low_label='Lorentz', high_label='Gauss')),
                                             orientation='horizontal',
