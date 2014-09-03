@@ -2,7 +2,7 @@
 
 from traits.api import on_trait_change
 import traits.api as traits
-from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler
+from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler, RangeEditor
 from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData, DataLabel
 from chaco.tools.api import PanTool, ZoomTool, BetterZoom, DragTool, RangeSelection, LineInspector, RangeSelectionOverlay
 from enable.component_editor import ComponentEditor
@@ -179,7 +179,7 @@ class DataPlotter(traits.HasTraits):
     #peak-picking
     peak_pick_btn = traits.Button(label='Peak-picking')
     deconvolute_btn = traits.Button(label='Deconvolute') 
-    lorgau = traits.Range(0.0,1.0, value=0)
+    lorgau = traits.Range(0.0,1.0, value=0, label='Lorentzian = 0, Gaussian = 1')
 
     #def _metadata_handler(self):                                                                                                
         #return #print self.metadata_source.metadata.get('selections')
@@ -566,7 +566,10 @@ class DataPlotter(traits.HasTraits):
             self.end_picking()
         print 'Imaginary components discarded.'
         self.fid.real()
-        self.fid.deconv(gl=0)
+        self.fid.deconv(gl=self.fid._gl)
+
+    def _lorgau_changed(self):
+        self.fid._gl = self.lorgau
 
     def update_plot_data_from_fid(self, index=None):
         if self.fid._ft:
@@ -648,7 +651,7 @@ class DataPlotter(traits.HasTraits):
                                         Group(
                                             Item('peak_pick_btn', show_label=False),
                                             Item('deconvolute_btn', show_label=False),
-                                            Item('lorgau', show_label=False),
+                                            Item('lorgau', show_label=False, editor=RangeEditor(low_label='Lorentz', high_label='Gauss')),
                                             orientation='horizontal',
                                             show_border=True,
                                             label='Peak-picking and deconvolution'),
