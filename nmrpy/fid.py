@@ -804,59 +804,59 @@ class FID_array(object):
 
             [1] Marquardt, Donald W. 'An algorithm for least-squares estimation of nonlinear parameters.' Journal of the Society for Industrial & Applied Mathematics 11.2 (1963): 431-441.
         """
+        self.real()
         self._convert_peaklist_to_index()
         self.data = self.data[:, ::-1]
         if mp:
             self._deconv_mp(gl=gl)
         else:
             self._deconv(gl=gl)
-        self._convert_peaklist_to_ppm()
         self.data = self.data[:, ::-1]
+        self._convert_peaklist_to_ppm()
+        print 'done!'
+
 
     def _deconv_single(self, n):
-        fit = []
-        for j in zip(self.peaks, self.ranges):
-            d_slice = self.data[n][j[1][0]:j[1][1]]
-            p_slice = j[0]-j[1][0]
-            f = f_fitp(d_slice, p_slice, self._gl)[0]
-            f = np.array(f).transpose()
-            f[0] += j[1][0]
-            f = f.transpose()
-            fit.append(f)
+        fit = self._deconv_datum(self.data[n], self.peaks, self.ranges, self._gl)
         print 'fit %i/%i'%(n+1, len(self.data))
-        integrals = f_integrals(self.data[n], fit)
-        return fit, integrals
+        return fit
+         
 
     def _deconv_mp(self, gl=None):
         self._gl = gl
         proc_pool = Pool()
-        f = proc_pool.map(_unwrap_fid_deconv, zip([self]*len(self.data), range(len(self.data))))
-        self.fits, self.integrals = np.transpose(f)
-        self.integrals = np.array([list(i) for i in self.integrals])
-        return f
+        data_zip = zip([self]*len(self.data), range(len(self.data)))
+        fits = proc_pool.map(_unwrap_fid_deconv, data_zip)
+        self.fits = np.array(fits)
+        self.integrals = f_integrals_array(self.data,self.fits)
+        #self.integrals = np.array([list(i) for i in self.integrals])
+        #return f
+
 
     def _deconv(self, gl=None):
-
-        data = self.data.real
+        data = self.data
         peaks = self.peaks
         ranges = self.ranges
         fits = []
         if len(data.shape)==2:
             for i in data:
-                fit = []
-                for j in zip(peaks,ranges):
-                    d_slice = i[j[1][0]:j[1][1]]
-                    p_slice = j[0]-j[1][0]
-                    f=f_fitp(d_slice,p_slice,gl)[0]
-                    f = np.array(f).transpose()
-                    f[0] += j[1][0]
-                    f = f.transpose()
-                    fit.append(f)
-                fits.append(fit)
-                print 'fit # '+str(len(fits))+'/'+str(len(data))
+                fits.append(self._deconv_datum(i, peaks, ranges, gl))
+                print 'fit %i/%i'%(len(fits), len(self.data))
             self.fits = np.array(fits)
             self.integrals = f_integrals_array(self.data,self.fits)
 
+    @staticmethod
+    def _deconv_datum(i, peaks , ranges, gl):
+        fit = []
+        for j in zip(peaks,ranges):
+            d_slice = i[j[1][0]:j[1][1]]
+            p_slice = j[0]-j[1][0]
+            f=f_fitp(d_slice, p_slice, gl)[0]
+            f = np.array(f).transpose()
+            f[0] += j[1][0]
+            f = f.transpose()
+            fit.append(f)
+        return fit
 
     def plot_deconv(self, index=0, txt=True, sw_left=None, x_label='ppm', filename=None):
         """Generate a plot of data with fitted peaks.

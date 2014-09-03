@@ -179,6 +179,7 @@ class DataPlotter(traits.HasTraits):
     #peak-picking
     peak_pick_btn = traits.Button(label='Peak-picking')
     deconvolute_btn = traits.Button(label='Deconvolute') 
+    lorgau = traits.Range(0.0,1.0, value=0)
 
     #def _metadata_handler(self):                                                                                                
         #return #print self.metadata_source.metadata.get('selections')
@@ -631,16 +632,23 @@ class DataPlotter(traits.HasTraits):
                                             show_border=True,
                                             label='Baseline correction'),
                                         Group(
-                                            Item('ph_auto_btn', show_label=False),
-                                            Item('ph_auto_single_btn', show_label=False),
-                                            Item('ph_man_btn', show_label=False),
-                                            Item('ph_global', show_label=True),
+                                            Group(
+                                                Item('ph_auto_btn', show_label=False),
+                                                Item('ph_auto_single_btn', show_label=False),
+                                                orientation='horizontal',
+                                                show_border=True),
+                                            Group(
+                                                Item('ph_man_btn', show_label=False),
+                                                Item('ph_global', show_label=True),
+                                                orientation='horizontal',
+                                                show_border=True),
                                             orientation='horizontal',
                                             show_border=True,
                                             label='Phase correction'),
                                         Group(
                                             Item('peak_pick_btn', show_label=False),
                                             Item('deconvolute_btn', show_label=False),
+                                            Item('lorgau', show_label=False),
                                             orientation='horizontal',
                                             show_border=True,
                                             label='Peak-picking and deconvolution'),
