@@ -64,7 +64,10 @@ class FID_array(object):
         self._peaks = None
         self.peaks = [[]]
         self.ranges = []
-        self._ft = False
+        self._flags = {
+            "ft"    : False,
+            "gl"    : 0
+        }
 
     @property
     def data(self):
@@ -163,8 +166,8 @@ class FID_array(object):
         self.t = np.array([acqtime]*len(self.data))
 
     def ui(self):
-        fidplot = DataPlotter(self)
-        fidplot.configure_traits()
+        self.fidplot = DataPlotter(self)
+        self.fidplot.configure_traits()
 
     def zf_2(self):
         """Apply a single degree of zero-filling.
@@ -207,9 +210,9 @@ class FID_array(object):
         [1] Cooley, James W., and John W. Tukey, 1965, 'An algorithm for the machine calculation of complex Fourier series,' Math. Comput. 19: 297-301.
 
         """
-        if self._ft:
+        if self._flags['ft']:
             return
-        self._ft = True
+        self._flags['ft'] = True
         data =  np.array(np.fft.fft(self.data),dtype=self.data.dtype)
         s = data.shape[-1]
         if self._varian:
@@ -658,7 +661,7 @@ class FID_array(object):
         self.data = np.array(proc_pool.map(_unwrap_fid_neg_area, zip([self]*len(self.data), range(len(self.data)))))
 
 
-    def _phase_area(self, ):
+    def _phase_area(self):
         print 'fid\tp0\tp1'
         data = self.data
         data_ph = np.ones_like(data)
@@ -675,6 +678,7 @@ class FID_array(object):
             sys.stdout.flush()
             #if data_ph[i].mean() < 0:
             #    data_ph[i] = -data_ph[i]
+        self.data = data_ph
 
     def _phase_neg(self, thresh=0.0, ):
         print 'fid\tp0\tp1'
@@ -817,13 +821,13 @@ class FID_array(object):
 
 
     def _deconv_single(self, n):
-        fit = self._deconv_datum(self.data[n], self.peaks, self.ranges, self._gl)
+        fit = self._deconv_datum(self.data[n], self.peaks, self.ranges, self._flags['gl'])
         print 'fit %i/%i'%(n+1, len(self.data))
         return fit
          
 
     def _deconv_mp(self, gl=None):
-        self._gl = gl
+        self._flags['gl'] = gl
         proc_pool = Pool()
         data_zip = zip([self]*len(self.data), range(len(self.data)))
         fits = proc_pool.map(_unwrap_fid_deconv, data_zip)

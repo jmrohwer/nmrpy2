@@ -164,11 +164,9 @@ class DataPlotter(traits.HasTraits):
     #phasing
     ph_auto_btn = traits.Button(label='Auto: all')
     ph_auto_single_btn = traits.Button(label='Auto: selected')
+    ph_mp = traits.Bool(True, label='Parallelise')
     ph_man_btn = traits.Button(label='Manual')
     ph_global = traits.Bool(label='apply globally')
-    _manphasing = False
-    _bl_selecting = False 
-    _picking = False 
     _peak_marker_overlays = []
 
     #baseline correctoin
@@ -180,6 +178,14 @@ class DataPlotter(traits.HasTraits):
     peak_pick_clear = traits.Button(label='Clear peaks')
     deconvolute_btn = traits.Button(label='Deconvolute') 
     lorgau = traits.Range(0.0,1.0, value=0, label='Lorentzian = 0, Gaussian = 1')
+    deconvolute_mp = traits.Bool(True, label='Parallelise')
+
+    _flags = {
+        "manphasing"     : False, 
+        "bl_selecting"   : False,
+        "picking"        : False
+    }
+
 
     #def _metadata_handler(self):                                                                                                
         #return #print self.metadata_source.metadata.get('selections')
@@ -206,7 +212,7 @@ class DataPlotter(traits.HasTraits):
         self.fid = fid
         data = fid.data
         self.data_index = range(len(data))
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             self.x = np.linspace(self.fid.params['sw_left'], fid.params['sw_left']-fid.params['sw'], len(self.fid.data[0]))#range(len(self.data[0]))
             self.plot_data = ArrayPlotData(x=self.x, *np.real(data)) #chaco class Plot require chaco class ArrayPlotData
             plot = Plot(self.plot_data, default_origin='bottom right', padding=[5, 0, 0, 35])
@@ -218,7 +224,7 @@ class DataPlotter(traits.HasTraits):
         self.plot_init()
         
     def plot_init(self, index=[0]):
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             self.plot.x_axis.title = 'ppm.'
         else:
             self.plot.x_axis.title = 'sec.'
@@ -278,7 +284,7 @@ class DataPlotter(traits.HasTraits):
         self.plot.request_redraw()
 
     def set_x_range(self, up=x_range_up, dn=x_range_dn):
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             self.plot.index_range.high = up
             self.plot.index_range.low = dn
         else:
@@ -297,7 +303,7 @@ class DataPlotter(traits.HasTraits):
     def reset_plot(self):
         self.x_offset, self.y_offset = 0, 0
         self.y_scale = 1.0
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             self.plot.index_range.low, self.plot.index_range.high = [self.x[-1], self.x[0]]
         else:
             self.plot.index_range.low, self.plot.index_range.high = [self.x[0], self.x[-1]]
@@ -336,7 +342,7 @@ class DataPlotter(traits.HasTraits):
     #for some mysterious reason, selecting new data to plot doesn't retain the plot offsets even if you set them explicitly
     def _data_selected_changed(self):
         #check if we're in manphasing mode
-        if self._manphasing:
+        if self._flags['manphasing']:
             self.end_man_phasing()
 
         self.plot.delplot(*self.plot.plots)
@@ -350,7 +356,7 @@ class DataPlotter(traits.HasTraits):
     #plot the current apodisation function based on lb, and do apodisation
     #=================================================
     def _lb_plt_btn_fired(self):
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             return
         if 'lb1' in self.plot.plots:
         #if 'lb1' in self.plot_data.arrays:
@@ -361,7 +367,7 @@ class DataPlotter(traits.HasTraits):
         self.plot_lb()
 
     def plot_lb(self):
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             return
         lb_data = self.fid.data[self.data_selected[0]]
         lb_plt = np.exp(-np.pi*np.arange(len(lb_data))*(self.lb/self.fid.params['sw_hz'])) * lb_data[0]
@@ -370,21 +376,21 @@ class DataPlotter(traits.HasTraits):
         self.plot.request_redraw()
 
     def _lb_changed(self):
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             return
         lb_data = self.fid.data[self.data_selected[0]]
         lb_plt = np.exp(-np.pi*np.arange(len(lb_data))*(self.lb/self.fid.params['sw_hz'])) * lb_data[0]
         self.plot_data.set_data('lb1', np.real(lb_plt))
 
     def _lb_btn_fired(self):
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             return
         self.fid.emhz(self.lb)
         self.update_plot_data_from_fid()
     #=================================================
 
     def _zf_btn_fired(self):
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             return
         if 'lb1' in self.plot.plots:
             self.plot.delplot('lb1')
@@ -394,7 +400,7 @@ class DataPlotter(traits.HasTraits):
     def _ft_btn_fired(self):
         if 'lb1' in self.plot.plots:
             self.plot.delplot('lb1')
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             return
         self.fid.ft()
         self.update_plot_data_from_fid()
@@ -403,33 +409,33 @@ class DataPlotter(traits.HasTraits):
         self.reset_plot()
 
     def _ph_auto_btn_fired(self):
-        if not self.fid._ft:
+        if not self.fid._flags['ft']:
             return
-        self.fid.phase_auto(discard_imaginary=False)
+        self.fid.phase_auto(mp=self.ph_mp, discard_imaginary=False)
         self.update_plot_data_from_fid()
 
     def _ph_auto_single_btn_fired(self):
-        if not self.fid._ft:
+        if not self.fid._flags['ft']:
             return
         for i in self.data_selected:
             self.fid._phase_area_single(i)
         self.update_plot_data_from_fid()
 
     def _ph_man_btn_fired(self):
-        if not self.fid._ft:
+        if not self.fid._flags['ft']:
             return
-        if not self._manphasing:
-            self._manphasing = True
+        if not self._flags['manphasing']:
+            self._flags['manphasing'] = True
             self.change_plot_colour(colour='red')
             self.disable_plot_tools()
             self.plot._data_selected = self.data_selected
             self.plot._data_complex = self.fid.data[np.array(self.data_selected)]
             self.plot.tools.append(PhaseDragTool(self.plot))
-        elif self._manphasing:
+        elif self._flags['manphasing']:
             self.end_man_phasing()
 
     def end_man_phasing(self):
-        self._manphasing = False
+        self._flags['manphasing'] = False
         self.change_plot_colour(colour='black')
         if self.ph_global:
             self.fid.data = self.fid.ps(self.fid.data, p0=self.plot.tools[0].p0, p1=self.plot.tools[0].p1)
@@ -456,12 +462,12 @@ class DataPlotter(traits.HasTraits):
             self.plot.plots[plot][0].color = colour
 
     def _bl_sel_btn_fired(self):
-        if not self.fid._ft:
+        if not self.fid._flags['ft']:
             return
-        if self._bl_selecting:
+        if self._flags['bl_selecting']:
             self.end_bl_select()
         else:
-            self._bl_selecting = True
+            self._flags['bl_selecting'] = True
             self.plot.plot(('x', 'series%i'%(self.data_selected[0]+1)), 
                             name='bl_plot', 
                             type='scatter', 
@@ -489,7 +495,7 @@ class DataPlotter(traits.HasTraits):
                                                  color="blue"))
 
     def end_bl_select(self):
-        self._bl_selecting = False
+        self._flags['bl_selecting'] = False
         self._bl_ranges = self.plot.tools[0].bl_selections
         self._bl_indices = []
         for i, j   in self._bl_ranges:
@@ -503,21 +509,21 @@ class DataPlotter(traits.HasTraits):
         self.enable_plot_tools()
 
     def _bl_cor_btn_fired(self):
-        if not self.fid._ft:
+        if not self.fid._flags['ft']:
             return
-        if self._bl_selecting:
+        if self._flags['bl_selecting']:
             self.end_bl_select()
         self.fid.bl_fit() 
         self.update_plot_data_from_fid() 
 
     def _peak_pick_btn_fired(self):
-        if not self.fid._ft:
+        if not self.fid._flags['ft']:
             return
-        if self._picking:
+        if self._flags['picking']:
             self.end_picking()
             return
         else:
-            self._picking = True
+            self._flags['picking'] = True
 
         self.reset_plot()
         if self._peak_marker_overlays:
@@ -548,7 +554,7 @@ class DataPlotter(traits.HasTraits):
         self.picking_tool.on_trait_change(self._peak_handler, name=['_peaks', '_ranges']) #"_selection") #this doesn't signal the handler for some reason
 
     def end_picking(self):
-        self._picking = False
+        self._flags['picking'] = False
         #two corrections for plot padding offset in ranges and reshaping peaks according to ranges (required by fid.deconv())
         self.fid.ranges = [self.correct_padding(i) for i in self.fid.ranges]
         self.fid.peaks = [[peak for peak in self.fid.peaks if peak > peak_range[0] and peak < peak_range[1]] for peak_range in self.fid.ranges]
@@ -565,7 +571,7 @@ class DataPlotter(traits.HasTraits):
         self.plot.request_redraw()
 
     def _peak_pick_clear_fired(self):
-        if self._picking:
+        if self._flags['picking']:
             self.end_picking()
         self.peaks = []
         self.ranges = []
@@ -576,17 +582,17 @@ class DataPlotter(traits.HasTraits):
 
 
     def _deconvolute_btn_fired(self):
-        if self._picking:
+        if self._flags['picking']:
             self.end_picking()
         print 'Imaginary components discarded.'
         self.fid.real()
-        self.fid.deconv(gl=self.fid._gl)
+        self.fid.deconv(gl=self.fid._flags['gl'], mp=self.deconvolute_mp)
 
     def _lorgau_changed(self):
-        self.fid._gl = self.lorgau
+        self.fid._flags['gl'] = self.lorgau
 
     def update_plot_data_from_fid(self, index=None):
-        if self.fid._ft:
+        if self.fid._flags['ft']:
             self.x = np.linspace(self.fid.params['sw_left'], self.fid.params['sw_left']-self.fid.params['sw'], len(self.fid.data[0]))
         else:
             self.x = np.linspace(0, self.fid.params['at'], len(self.fid.data[0]))
@@ -652,6 +658,7 @@ class DataPlotter(traits.HasTraits):
                                             Group(
                                                 Item('ph_auto_btn', show_label=False),
                                                 Item('ph_auto_single_btn', show_label=False),
+                                                Item('ph_mp', show_label=True),
                                                 orientation='horizontal',
                                                 show_border=True),
                                             Group(
@@ -667,6 +674,7 @@ class DataPlotter(traits.HasTraits):
                                             Item('peak_pick_clear', show_label=False),
                                             Item('deconvolute_btn', show_label=False),
                                             Item('lorgau', show_label=False, editor=RangeEditor(low_label='Lorentz', high_label='Gauss')),
+                                            Item('deconvolute_mp', show_label=True),
                                             orientation='horizontal',
                                             show_border=True,
                                             label='Peak-picking and deconvolution'),
