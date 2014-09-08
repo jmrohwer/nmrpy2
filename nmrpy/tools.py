@@ -60,7 +60,7 @@ class PhaseDragTool(DragTool):
 
     end_drag_on_leave = True
     # The mouse button that initiates the drag.
-    drag_button = traits.Enum('left', 'right') #WTF?!?!?!?!
+    drag_button = traits.Enum('left', 'right') #only the first specified button works
     p0 = 0.0
     p1 = 0.0
  
@@ -123,8 +123,6 @@ class PeakSelectTool(RangeSelection):
     #set_trace()
     peaks_now = traits.List()
     ranges_now = traits.List()
-    #peaks = []
-    #ranges = []
 
     def normal_left_down(self, event): 
         peaks = [i for i in self.peaks_now]
@@ -195,13 +193,12 @@ class DataPlotter(traits.HasTraits):
         #return #print self.metadata_source.metadata.get('selections')
 
     def _peak_handler(self):
-        #if self.picking_tool._peaks:
        # set_trace() 
         self._peaks_now = list(self.picking_tool.peaks_now)
         self._ranges_now = list(self.picking_tool.ranges_now)
         picked_peaks = self.index2ppm(np.array(self.picking_tool.peaks_now))
         if picked_peaks != self.fid.peaks: 
-            self.fid.peaks = picked_peaks #self.index2ppm(np.array(self.picking_tool._peaks))
+            self.fid.peaks = picked_peaks
             if self.fid.peaks:
                 peak_ppm = self.fid.peaks[-1]
                 self.plot_marker(peak_ppm)
@@ -224,12 +221,12 @@ class DataPlotter(traits.HasTraits):
         data = fid.data
         self.data_index = range(len(data))
         if self.fid._flags['ft']:
-            self.x = np.linspace(self.fid.params['sw_left'], fid.params['sw_left']-fid.params['sw'], len(self.fid.data[0]))#range(len(self.data[0]))
-            self.plot_data = ArrayPlotData(x=self.x, *np.real(data)) #chaco class Plot require chaco class ArrayPlotData
+            self.x = np.linspace(self.fid.params['sw_left'], fid.params['sw_left']-fid.params['sw'], len(self.fid.data[0]))
+            self.plot_data = ArrayPlotData(x=self.x, *np.real(data)) 
             plot = Plot(self.plot_data, default_origin='bottom right', padding=[5, 0, 0, 35])
         else: 
             self.x = np.linspace(0, self.fid.params['at'], len(self.fid.data[0]))
-            self.plot_data = ArrayPlotData(x=self.x, *np.real(data)) #chaco class Plot require chaco class ArrayPlotData
+            self.plot_data = ArrayPlotData(x=self.x, *np.real(data)) 
             plot = Plot(self.plot_data, default_origin='bottom left', padding=[5, 0, 0, 35])
         self.plot = plot
         self.plot_init()
@@ -401,7 +398,6 @@ class DataPlotter(traits.HasTraits):
             return
         self.fid.emhz(self.lb)
         self.update_plot_data_from_fid()
-    #=================================================
 
     def _zf_btn_fired(self):
         if self.fid._flags['ft']:
@@ -535,7 +531,6 @@ class DataPlotter(traits.HasTraits):
             return
         if self._flags['picking']:
             self.end_picking()
-            #print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks',self.picking_tool.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
             print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
             return
         else:
@@ -572,12 +567,7 @@ class DataPlotter(traits.HasTraits):
 
         # Set up the trait handler for peak/range selections
         self.picking_tool = self.plot.tools[0]
-        #set_trace()
-        #self.picking_tool.peaks = self.fid.peaks
-        #self.picking_tool.peaks_now = self.fid.peaks
-        self.picking_tool.on_trait_change(self._peak_handler, name=['peaks_now', 'ranges_now']) #"_selection") #this doesn't signal the handler for some reason
-
-        #print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks',self.picking_tool.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
+        self.picking_tool.on_trait_change(self._peak_handler, name=['peaks_now', 'ranges_now'])
         print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
 
 
@@ -608,20 +598,14 @@ class DataPlotter(traits.HasTraits):
         #remove uncoupled peaks and empty ranges
         self.fid.peaks = [self.fid.peaks[i] for i in range(len(self.fid.peaks)) if i not in peaks_outside_of_ranges]
         self._peaks_now = [self._peaks_now[i] for i in range(len(self._peaks_now)) if i not in peaks_outside_of_ranges]
-        #self.picking_tool.peaks_now = [self.picking_tool.peaks_now[i] for i in range(len(self.picking_tool.peaks_now)) if i not in peaks_outside_of_ranges]
         self.fid.ranges = [self.fid.ranges[i] for i in range(len(self.fid.ranges)) if i not in ranges_without_peaks]
         self._ranges_now = [self._ranges_now[i] for i in range(len(self._ranges_now)) if i not in ranges_without_peaks]
-        #self.picking_tool.ranges_now = [self.picking_tool.ranges_now[i] for i in range(len(self.picking_tool.ranges_now)) if i not in ranges_without_peaks]
 
 
     def clear_all_peaks_ranges(self):
-        #set_trace()
         self.fid.peaks = []
         self.fid.ranges = []
-        #overkill
-        #self.picking_tool.peaks = []
         self.picking_tool.peaks_now = []
-        #self.picking_tool.ranges = []
         self.picking_tool.ranges_now = []
         self._peak_marker_overlays = {}
         self.plot.plots['plot0'][0].overlays = []
@@ -641,8 +625,6 @@ class DataPlotter(traits.HasTraits):
         
 
     def _peak_pick_clear_fired(self):
-        #if self._flags['picking']:
-        #    self.end_picking()
         self.clear_all_peaks_ranges()
 
 
