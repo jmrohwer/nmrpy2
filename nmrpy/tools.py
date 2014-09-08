@@ -9,6 +9,8 @@ from traitsui.tabular_adapter import TabularAdapter
 from matplotlib import cm
 from enable.api import KeySpec
 
+from pudb import set_trace
+
 class TC_Handler(Handler):
 
     #def ph_man_btn_changed(self, info):
@@ -118,23 +120,23 @@ class PeakPicker(LineInspector):
     peaks = []
 
 class PeakSelectTool(RangeSelection):
-    _peaks = traits.List()
-    _ranges = traits.List()
-    peaks = []
-    ranges = []
+    #set_trace()
+    peaks_now = traits.List()
+    ranges_now = traits.List()
+    #peaks = []
+    #ranges = []
 
-    def normal_left_down(self, event):
-        self.peaks.append(event.x)
-        self._peaks = self.peaks
+    def normal_left_down(self, event): 
+        peaks = [i for i in self.peaks_now]
+        peaks.append(event.x)
+        self.peaks_now = peaks
 
     def selecting_right_up(self, event):
-        self.ranges.append(list(self.selection))
-        self._ranges = self.ranges
+        ranges = [i for i in self.ranges_now]
+        ranges.append(list(self.selection))
+        self.ranges_now = ranges
         self.event_state = 'selected'
 
-    #@on_trait_change('_peaks') 
-    #def dosummin(self):
-    #    print self._peaks    
 
 
 class DataPlotter(traits.HasTraits):
@@ -167,7 +169,7 @@ class DataPlotter(traits.HasTraits):
     ph_mp = traits.Bool(True, label='Parallelise')
     ph_man_btn = traits.Button(label='Manual')
     ph_global = traits.Bool(label='apply globally')
-    _peak_marker_overlays = []
+    _peak_marker_overlays = {}
 
     #baseline correctoin
     bl_cor_btn = traits.Button(label='BL correct')
@@ -179,6 +181,8 @@ class DataPlotter(traits.HasTraits):
     deconvolute_btn = traits.Button(label='Deconvolute') 
     lorgau = traits.Range(0.0,1.0, value=0, label='Lorentzian = 0, Gaussian = 1')
     deconvolute_mp = traits.Bool(True, label='Parallelise')
+    _peaks_now = []
+    _ranges_now = []
 
     _flags = {
         "manphasing"     : False, 
@@ -191,21 +195,28 @@ class DataPlotter(traits.HasTraits):
         #return #print self.metadata_source.metadata.get('selections')
 
     def _peak_handler(self):
-        if self.fid.peaks != self.picking_tool._peaks and self.picking_tool._peaks: 
-            self.fid.peaks = self.index2ppm(np.array(self.picking_tool._peaks))
-            peak_ppm = self.fid.peaks[-1]
-            self.plot_marker(peak_ppm)
-        if self.fid.ranges != self.picking_tool._ranges and self.picking_tool._ranges:
-            self.fid.ranges = self.picking_tool._ranges
-            range_ppm = self.correct_padding(self.fid.ranges[-1])
-            self.range_marker(range_ppm[0], colour='blue')
-            self.range_marker(range_ppm[1], colour='blue')
+        #if self.picking_tool._peaks:
+       # set_trace() 
+        self._peaks_now = list(self.picking_tool.peaks_now)
+        self._ranges_now = list(self.picking_tool.ranges_now)
+        picked_peaks = self.index2ppm(np.array(self.picking_tool.peaks_now))
+        if picked_peaks != self.fid.peaks: 
+            self.fid.peaks = picked_peaks #self.index2ppm(np.array(self.picking_tool._peaks))
+            if self.fid.peaks:
+                peak_ppm = self.fid.peaks[-1]
+                self.plot_marker(peak_ppm)
+        if self.picking_tool.ranges_now:
+            picked_ranges = [self.correct_padding(r) for r in self.picking_tool.ranges_now]
+            if self.fid.ranges is not picked_ranges:
+                self.fid.ranges = picked_ranges
+                self.range_marker(self.fid.ranges[-1][0], colour='blue')
+                self.range_marker(self.fid.ranges[-1][1], colour='blue')
 
     def index2ppm(self, index):
-            return self.fid.params['sw_left']-(index-self.plot.padding_left)/self.plot.width*self.fid.params['sw']
+            return list(np.array(self.fid.params['sw_left']-(index-self.plot.padding_left)/self.plot.width*self.fid.params['sw'], dtype='float16'))
 
     def correct_padding(self, values):
-        return np.array(values)+float(self.plot.padding_left)/self.plot.width*self.fid.params['sw']
+        return list(np.array(np.array(values)+float(self.plot.padding_left)/self.plot.width*self.fid.params['sw'], dtype='float16' ))
 
     def __init__(self, fid):
         super(DataPlotter, self).__init__()
@@ -260,6 +271,7 @@ class DataPlotter(traits.HasTraits):
                             border_visible=False,
                             arrow_visible=True)
         self.plot.plots['plot0'][0].overlays.append(dl)
+        self._peak_marker_overlays[ppm] = dl
         self.plot.request_redraw()
 
     def range_marker(self, ppm, colour='blue'):
@@ -274,7 +286,9 @@ class DataPlotter(traits.HasTraits):
                             border_visible=False,
                             arrow_visible=True)
         self.plot.plots['plot0'][0].overlays.append(dl)
+        self._peak_marker_overlays[ppm] = dl
         self.plot.request_redraw()
+
     def _x_range_btn_fired(self):
         if self.x_range_up < self.x_range_dn:
             xr = self.x_range_up
@@ -521,24 +535,32 @@ class DataPlotter(traits.HasTraits):
             return
         if self._flags['picking']:
             self.end_picking()
+            #print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks',self.picking_tool.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
+            print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
             return
         else:
             self._flags['picking'] = True
 
         self.reset_plot()
         if self._peak_marker_overlays:
-            self.plot.plots['plot0'][0].overlays = self._peak_marker_overlays
+            self.plot.plots['plot0'][0].overlays = self._peak_marker_overlays.values()
         self.disable_plot_tools()
+
+        #set_trace()
+        pst = PeakSelectTool(self.plot.plots['plot0'][0],
+                                        left_button_selects=True)
+        pst.peaks_now = self._peaks_now
+        pst.ranges_now = self._ranges_now
+
         self.plot.overlays.append(PeakPicker(component=self.plot,
                                              axis='index_x',
                                              inspect_mode="indexed",
                                              metadata_name='peaks',
                                              write_metadata=True,
                                              color="blue"))
-        self.plot.tools.append(PeakSelectTool(self.plot.plots['plot0'][0],
-                                        left_button_selects=True,
+        self.plot.tools.append(pst)
                                         #metadata_name='selections',
-                                        append_key=KeySpec(None, 'control')))
+                                        #append_key=KeySpec(None, 'control')))
         self.plot.overlays.append(RangeSelectionOverlay(component=self.plot.plots['plot0'][0],
                                         metadata_name='selections',
                                         axis='index',
@@ -550,34 +572,78 @@ class DataPlotter(traits.HasTraits):
 
         # Set up the trait handler for peak/range selections
         self.picking_tool = self.plot.tools[0]
-        #self.picking_tool.on_trait_change(self._peak_handler)#, name='_peaks') #"_selection")
-        self.picking_tool.on_trait_change(self._peak_handler, name=['_peaks', '_ranges']) #"_selection") #this doesn't signal the handler for some reason
+        #set_trace()
+        #self.picking_tool.peaks = self.fid.peaks
+        #self.picking_tool.peaks_now = self.fid.peaks
+        self.picking_tool.on_trait_change(self._peak_handler, name=['peaks_now', 'ranges_now']) #"_selection") #this doesn't signal the handler for some reason
+
+        #print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks',self.picking_tool.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
+        print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
+
 
     def end_picking(self):
+       # set_trace() 
         self._flags['picking'] = False
-        #two corrections for plot padding offset in ranges and reshaping peaks according to ranges (required by fid.deconv())
-        self.fid.ranges = [self.correct_padding(i) for i in self.fid.ranges]
-        self.fid.peaks = [[peak for peak in self.fid.peaks if peak > peak_range[0] and peak < peak_range[1]] for peak_range in self.fid.ranges]
-        filled_ranges = [i for i in range(len(self.fid.peaks)) if self.fid.peaks[i]]
-        self.fid.peaks = [self.fid.peaks[i] for i in filled_ranges]
-        self.fid.ranges = [self.fid.ranges[i] for i in filled_ranges]
-                
-                
+        if self.fid.peaks and self.fid.ranges:
+            self.clear_invalid_peaks_ranges()
+        else:
+            self.clear_all_peaks_ranges()
+         
         self.plot.overlays = []
-        self._peak_marker_overlays = self.plot.plots['plot0'][0].overlays
         self.plot.plots['plot0'][0].overlays = []
         self.disable_plot_tools()
         self.enable_plot_tools()
         self.plot.request_redraw()
 
-    def _peak_pick_clear_fired(self):
-        if self._flags['picking']:
-            self.end_picking()
-        self.peaks = []
-        self.ranges = []
-        self._peak_marker_overlays = []
+    def clear_invalid_peaks_ranges(self):
+        #set_trace()
+        peaks_outside_of_ranges = self.peaks_outside_of_ranges()
+        ranges_without_peaks = self.ranges_without_peaks()
+        #remove uncoupled peak markers and empty range markers
+        for i in peaks_outside_of_ranges:
+            self._peak_marker_overlays.pop(self.fid.peaks[i])
+        for i in ranges_without_peaks:
+            for rng in self.fid.ranges[i]:
+                self._peak_marker_overlays.pop(rng)
+        #remove uncoupled peaks and empty ranges
+        self.fid.peaks = [self.fid.peaks[i] for i in range(len(self.fid.peaks)) if i not in peaks_outside_of_ranges]
+        self._peaks_now = [self._peaks_now[i] for i in range(len(self._peaks_now)) if i not in peaks_outside_of_ranges]
+        #self.picking_tool.peaks_now = [self.picking_tool.peaks_now[i] for i in range(len(self.picking_tool.peaks_now)) if i not in peaks_outside_of_ranges]
+        self.fid.ranges = [self.fid.ranges[i] for i in range(len(self.fid.ranges)) if i not in ranges_without_peaks]
+        self._ranges_now = [self._ranges_now[i] for i in range(len(self._ranges_now)) if i not in ranges_without_peaks]
+        #self.picking_tool.ranges_now = [self.picking_tool.ranges_now[i] for i in range(len(self.picking_tool.ranges_now)) if i not in ranges_without_peaks]
+
+
+    def clear_all_peaks_ranges(self):
+        #set_trace()
+        self.fid.peaks = []
+        self.fid.ranges = []
+        #overkill
+        #self.picking_tool.peaks = []
+        self.picking_tool.peaks_now = []
+        #self.picking_tool.ranges = []
+        self.picking_tool.ranges_now = []
+        self._peak_marker_overlays = {}
+        self.plot.plots['plot0'][0].overlays = []
+        self.plot.request_redraw()
         print 'Selected peaks and ranges cleared.'
 
+    def peaks_ranges_matrix(self):
+        return np.array([(self.fid.peaks >= i[0])*(self.fid.peaks <= i[1]) for i in self.fid.ranges])
+
+    def peaks_outside_of_ranges(self):
+        index = self.peaks_ranges_matrix().sum(0)
+        return np.arange(len(self.fid.peaks))[np.where(index == 0)]
+
+    def ranges_without_peaks(self):
+        index = self.peaks_ranges_matrix().sum(1)
+        return np.arange(len(self.fid.ranges))[np.where(index == 0)]
+        
+
+    def _peak_pick_clear_fired(self):
+        #if self._flags['picking']:
+        #    self.end_picking()
+        self.clear_all_peaks_ranges()
 
 
 
