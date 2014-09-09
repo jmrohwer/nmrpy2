@@ -1,6 +1,6 @@
 from traits.api import on_trait_change
 import traits.api as traits
-from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler, RangeEditor
+from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler, RangeEditor, ProgressEditor
 from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData, DataLabel
 from chaco.tools.api import PanTool, ZoomTool, BetterZoom, DragTool, RangeSelection, LineInspector, RangeSelectionOverlay
 from enable.component_editor import ComponentEditor
@@ -8,8 +8,10 @@ import numpy as np
 from traitsui.tabular_adapter import TabularAdapter
 from matplotlib import cm
 from enable.api import KeySpec
-
+from traitsui.wx.animated_gif_editor import AnimatedGIFEditor
 from pudb import set_trace
+from os.path import join, dirname
+
 
 class TC_Handler(Handler):
 
@@ -42,7 +44,6 @@ class TC_Handler(Handler):
 
 
 class MultiSelectAdapter(TabularAdapter):
-
     # Titles and column names for each column of a table.
     # In this example, each table has only one column.
     columns = [ ('index', 'myvalue') ]
@@ -189,6 +190,11 @@ class DataPlotter(traits.HasTraits):
     }
 
 
+    #progress bar
+    #progress_val = traits.Int()
+    loading_animation = traits.File('/home/jeicher/Apps/NMRPy/nmrpy/loading.gif')
+    busy_animation = traits.Bool(False)
+
     #def _metadata_handler(self):                                                                                                
         #return #print self.metadata_source.metadata.get('selections')
 
@@ -320,7 +326,6 @@ class DataPlotter(traits.HasTraits):
             self.plot.index_range.low, self.plot.index_range.high = [self.x[0], self.x[-1]]
         self.plot.value_range.low = self.plot.data.arrays['series%i'%(self.data_selected[0]+1)].min()
         self.plot.value_range.high = self.plot.data.arrays['series%i'%(self.data_selected[0]+1)].max()
-        #add pan resetting
 
     def _reset_plot_btn_fired(self):
         print 'resetting plot...'
@@ -370,8 +375,6 @@ class DataPlotter(traits.HasTraits):
         if self.fid._flags['ft']:
             return
         if 'lb1' in self.plot.plots:
-        #if 'lb1' in self.plot_data.arrays:
-            #self.plot_data.del_data('lb1')
             self.plot.delplot('lb1')
             self.plot.request_redraw()
             return
@@ -627,17 +630,25 @@ class DataPlotter(traits.HasTraits):
     def _peak_pick_clear_fired(self):
         self.clear_all_peaks_ranges()
 
-
+    def busy(self):
+        if self.busy_animation:
+            self.busy_animation = False
+        else:
+            self.busy_animation = True 
 
     def _deconvolute_btn_fired(self):
+        set_trace()
+        self.busy()
         if self._flags['picking']:
             self.end_picking()
         print 'Imaginary components discarded.'
         self.fid.real()
         self.fid.deconv(gl=self.fid._flags['gl'], mp=self.deconvolute_mp)
+        self.busy()
 
     def _lorgau_changed(self):
         self.fid._flags['gl'] = self.lorgau
+
 
     def update_plot_data_from_fid(self, index=None):
         if self.fid._flags['ft']:
@@ -723,12 +734,26 @@ class DataPlotter(traits.HasTraits):
                                             Item('deconvolute_btn', show_label=False),
                                             Item('lorgau', show_label=False, editor=RangeEditor(low_label='Lorentz', high_label='Gauss')),
                                             Item('deconvolute_mp', show_label=True),
+
                                             orientation='horizontal',
                                             show_border=True,
                                             label='Peak-picking and deconvolution'),
                                             show_border=True, label='Processing'),
+
+                                        Group(
+                                            Item( 'loading_animation', 
+                                                editor     = AnimatedGIFEditor(playing=str('busy_animation')),#( frame = 'frame_animation' ),
+                                                show_label = False),
+                                            #Item('progress_val',
+                                            #    show_label=False,
+                                            #    editor=ProgressEditor(
+                                            #        min=0,
+                                            #        max=100,
+                                            #        ),
+                                            #    )
+                                            ),
                                         show_border=True,
-                                    orientation='horizontal')
+                                        orientation='horizontal'),
                                         ),
                             width=1.0,
                             height=0.8,
