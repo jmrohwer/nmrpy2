@@ -434,7 +434,7 @@ class FID_array(object):
             index = range(len(self.data))
         if labels == 'peaks':
             if self.peaks:
-                peaks = [round(j, 3) for i in self.peaks]
+                peaks = [round(i, 3) for i in self.peaks]
                 labels = dict(zip([str(i) for i in peaks], peaks))
             else:
                 labels = {}
