@@ -802,23 +802,24 @@ class DataPlotter(traits.HasTraits):
                                             label='Peak-picking and deconvolution'),
                                             show_border=True, label='Processing'),
 
-                                        Group(
-                                            Item( 'loading_animation', 
-                                                editor     = AnimatedGIFEditor(playing=str('busy_animation')),#( frame = 'frame_animation' ),
-                                                show_label = False),
-                                            #Item('progress_val',
-                                            #    show_label=False,
-                                            #    editor=ProgressEditor(
-                                            #        min=0,
-                                            #        max=100,
-                                            #        ),
-                                            #    )
-                                            ),
+                                        #Group(
+                                        #    Item( 'loading_animation', 
+                                        #        editor     = AnimatedGIFEditor(playing=str('busy_animation')),#( frame = 'frame_animation' ),
+                                        #        show_label = False),
+                                        #    #Item('progress_val',
+                                        #    #    show_label=False,
+                                        #    #    editor=ProgressEditor(
+                                        #    #        min=0,
+                                        #    #        max=100,
+                                        #    #        ),
+                                        #    #    )
+                                        #    ),
                                         show_border=True,
                                         orientation='horizontal'),
+
                                         ),
                             width=1.0,
-                            height=0.8,
+                            height=1.0,
                             resizable=True,
                             handler=TC_Handler(),
                             title='NMRPy')
