@@ -178,15 +178,17 @@ class DataPlotter(traits.HasTraits):
     peak_pick_btn = traits.Button(label='Peak-picking')
     peak_pick_clear = traits.Button(label='Clear peaks')
     deconvolute_btn = traits.Button(label='Deconvolute') 
+    plot_decon_btn = traits.Button(label='Show Lineshapes') 
     lorgau = traits.Range(0.0,1.0, value=0, label='Lorentzian = 0, Gaussian = 1')
     deconvolute_mp = traits.Bool(True, label='Parallelise')
     _peaks_now = []
     _ranges_now = []
 
     _flags = {
-        "manphasing"     : False, 
-        "bl_selecting"   : False,
-        "picking"        : False
+        'manphasing'     : False, 
+        'bl_selecting'   : False,
+        'picking'        : False,
+        'lineshapes_vis' : False,
     }
 
 
@@ -637,7 +639,7 @@ class DataPlotter(traits.HasTraits):
             self.busy_animation = True 
 
     def _deconvolute_btn_fired(self):
-        set_trace()
+        #set_trace()
         self.busy()
         if self._flags['picking']:
             self.end_picking()
@@ -645,6 +647,52 @@ class DataPlotter(traits.HasTraits):
         self.fid.real()
         self.fid.deconv(gl=self.fid._flags['gl'], mp=self.deconvolute_mp)
         self.busy()
+
+    def _plot_decon_btn_fired(self):
+        index = self.data_selected[0]
+        if self._flags['lineshapes_vis']:
+            for line in [i for i in self.plot.plots if 'lineshape' in i]:
+                self.plot.delplot(line)
+            for line in [i for i in self.plot.plots if 'residual' in i]:
+                self.plot.delplot(line)
+            self.plot.request_redraw()
+            self._flags['lineshapes_vis'] = False
+            return
+
+        self._flags['lineshapes_vis'] = True
+        sw_left = self.fid.params['sw_left'] 
+        data = self.fid.data[index][::-1]
+        paramarray = self.fid.fits[index]
+        def i2ppm(index_value):
+            return np.mgrid[sw_left-self.fid.params['sw']:sw_left:complex(len(data))][index_value]
+        
+        def peaknum(paramarray,peak):
+            pkr = []
+            for i in paramarray:
+                for j in i:
+                    pkr.append(np.array(j-peak).sum())
+            return np.where(np.array(pkr)==0.)[0][0]
+
+        x = np.arange(len(data))
+        peakplots = []
+        for irange in paramarray:
+            for ipeak in irange:
+                #if txt:
+                #    text(i2ppm(int(ipeak[0])), 0.1+pk.max(), str(peaknum(paramarray,ipeak)), color='#336699')
+                peakplots.append(f_pk(ipeak,x)[::-1])
+        #plot sum of all lines
+        self.plot_data.set_data('lineshapes_%i'%(index), sum(peakplots,0))
+        self.plot.plot(('x', 'lineshapes_%i'%(index)), type='line', name='lineshapes_%i'%(index), line_width=0.5, color='blue')[0]
+        #plot residual
+        self.plot_data.set_data('residuals_%i'%(index), data[::-1]-sum(peakplots,0))
+        self.plot.plot(('x', 'residuals_%i'%(index)), type='line', name='residuals_%i'%(index), line_width=0.5, color='red')[0]
+        #plot all individual lines
+        for peak in range(len(peakplots)):
+            self.plot_data.set_data('lineshape_%i_%i'%(index, peak), peakplots[peak])
+            self.plot.plot(('x', 'lineshape_%i_%i'%(index, peak)), type='line', name='lineshape_%i_%i'%(index, peak), line_width=0.5, color='green')[0]
+        self.plot.request_redraw()
+  
+
 
     def _lorgau_changed(self):
         self.fid._flags['gl'] = self.lorgau
@@ -734,6 +782,7 @@ class DataPlotter(traits.HasTraits):
                                             Item('deconvolute_btn', show_label=False),
                                             Item('lorgau', show_label=False, editor=RangeEditor(low_label='Lorentz', high_label='Gauss')),
                                             Item('deconvolute_mp', show_label=True),
+                                            Item('plot_decon_btn', show_label=False),
 
                                             orientation='horizontal',
                                             show_border=True,
@@ -773,6 +822,21 @@ class DataPlotter(traits.HasTraits):
 #    def __init__(self, fid):
 #        super(MainWindow,self).__init__()
 #        self.data_plotter = DataPlotter(fid)
+
+def f_pk(p,x):
+    """Return the evaluation of a combined Gaussian/3-parameter Lorentzian function for deconvolution.
+
+    Keyword arguments:
+    p -- parameter list: [spectral offset (x), gauss: 2*sigma**2, gauss: amplitude, lorentz: scale (HWHM), lorentz: amplitude, fraction of function to be Gaussian (0 -> 1)]
+    x -- array of equal length to FID
+    Note: specifying a Gaussian fraction of 0 will produce a pure Lorentzian and vice versa.
+    """
+    fgss  = lambda p,x: p[2]*np.exp(-(p[0]-x)**2/p[1])
+    flor = lambda p,x: p[2]*p[1]**2/(p[1]**2+4*(p[0]-x)**2)
+    f = p[-1]*fgss(p[np.array([0,1,2])],x)+(1-p[-1])*flor(p[np.array([0,3,4])],x)
+    return f
+
+
 
 
 if __name__ == "__main__":
