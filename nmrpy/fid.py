@@ -64,6 +64,7 @@ class FID_array(object):
         self._peaks = None
         self.peaks = []
         self.ranges = []
+        self.fits = []
         self._flags = {
             "ft"    : False,
             "gl"    : 0

@@ -359,15 +359,20 @@ class DataPlotter(traits.HasTraits):
 
     #for some mysterious reason, selecting new data to plot doesn't retain the plot offsets even if you set them explicitly
     def _data_selected_changed(self):
-        #check if we're in manphasing mode
         if self._flags['manphasing']:
             self.end_man_phasing()
+        if self._flags['picking']:
+            self.end_picking()
+    
 
         self.plot.delplot(*self.plot.plots)
         self.plot.request_redraw()
         for i in self.data_selected:
             self.plot.plot(('x', 'series%i'%(i+1)), type='line', line_width=0.5, color='black', position=[self.x_offsets[i], self.y_offsets[i]]) #FIX: this isn't working
         #self.reset_plot() # this is due to the fact that the plot automatically resets anyway
+        if self._flags['lineshapes_vis']:
+            self.clear_lineshapes()
+            self.plot_deconv()
         
     #processing buttons
 
@@ -648,20 +653,28 @@ class DataPlotter(traits.HasTraits):
         self.fid.deconv(gl=self.fid._flags['gl'], mp=self.deconvolute_mp)
         self.busy()
 
+    def clear_lineshapes(self):
+        for line in [i for i in self.plot.plots if 'lineshape' in i]:
+            self.plot.delplot(line)
+        for line in [i for i in self.plot.plots if 'residual' in i]:
+            self.plot.delplot(line)
+        self.plot.request_redraw()
+
     def _plot_decon_btn_fired(self):
-        index = self.data_selected[0]
         if self._flags['lineshapes_vis']:
-            for line in [i for i in self.plot.plots if 'lineshape' in i]:
-                self.plot.delplot(line)
-            for line in [i for i in self.plot.plots if 'residual' in i]:
-                self.plot.delplot(line)
-            self.plot.request_redraw()
+            self.clear_lineshapes()
             self._flags['lineshapes_vis'] = False
             return
 
         self._flags['lineshapes_vis'] = True
+        self.plot_deconv()
+    
+    def plot_deconv(self):
+        index = self.data_selected[0]
         sw_left = self.fid.params['sw_left'] 
         data = self.fid.data[index][::-1]
+        if len(self.fid.fits) == 0:
+            return
         paramarray = self.fid.fits[index]
         def i2ppm(index_value):
             return np.mgrid[sw_left-self.fid.params['sw']:sw_left:complex(len(data))][index_value]
