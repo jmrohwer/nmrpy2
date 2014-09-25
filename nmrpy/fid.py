@@ -13,7 +13,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 from matplotlib import patches, rc
 from matplotlib.font_manager import FontProperties
-from matplotlib.pylab import show, get_current_fig_manager, figure, cm, text
+from matplotlib.pylab import show, get_current_fig_manager, figure, cm, text, plt
 import matplotlib.ticker as ticker
 from multiprocessing import Pool, cpu_count
 try:
@@ -65,6 +65,7 @@ class FID_array(object):
         self.peaks = []
         self.ranges = []
         self.fits = []
+        self.integrals = []
         self._flags = {
             "ft"    : False,
             "gl"    : 0
@@ -167,8 +168,8 @@ class FID_array(object):
         self.t = np.array([acqtime]*len(self.data))
 
     def ui(self):
-        self.fidplot = DataPlotter(self)
-        self.fidplot.configure_traits()
+        fidplot = DataPlotter(self)
+        fidplot.configure_traits()
 
     def zf_2(self):
         """Apply a single degree of zero-filling.
@@ -925,6 +926,43 @@ class FID_array(object):
             ax.set_yticks(ax.get_yticks()[1:])
         if filename is not None: fig_all.savefig(filename,format='pdf')
         show()
+
+    @staticmethod
+    def plot_dict(x, d, index='all', title=None, xlabel='', ylabel='', ylim=None, fmt=None, cl=None, filename=None, text=None):
+        if index == 'all':
+            index = d.keys()
+        if not cl:
+            cl = dict(zip(d, plt.cm.Set1(np.linspace(0,1,len(d)))))
+        if not fmt:
+            fmt = {i:'o' for i in index}
+        fig = plt.figure()
+        ax1 = fig.add_subplot(111)
+        for i in index:
+            ax1.plot(x, d[i], fmt[i], color=cl[i], lw=2, label=i)
+    
+        ax1.set_xlabel(xlabel)
+        ax1.set_ylabel(ylabel)
+        box = ax1.get_position()
+        ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        ax1.grid()
+        if title:
+            ax1.set_title(title)
+        if text:
+            ax1.text(0.6*ax1.get_xlim()[1], 0.05*ax1.get_ylim()[1], text)
+        if ylim:
+            ax1.set_ylim([0,ylim])
+        if filename:
+            fig.savefig(filename, format='pdf')
+        plt.show()
+
+    def plot_integrals(self, index='all'):
+        self.integral_dict = dict(zip(['%0.3f'%i for i in self.peaks], self.integrals.transpose()))
+        x = self.t[:len(self.integrals.transpose()[0])]
+        self.plot_dict(x, self.integral_dict, index=index, title='peak integrals', xlabel='time')
+        
+
+
 
 
     def integrate(self,index=None,ranges=None):

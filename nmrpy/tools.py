@@ -1,6 +1,6 @@
 from traits.api import on_trait_change
 import traits.api as traits
-from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler, RangeEditor, ProgressEditor
+from traitsui.api import View, Item, CheckListEditor, TabularEditor, HGroup, UItem, TabularEditor, Group, Handler, RangeEditor, ProgressEditor, Action
 from chaco.api import Plot, MultiArrayDataSource, ArrayPlotData, DataLabel
 from chaco.tools.api import PanTool, ZoomTool, BetterZoom, DragTool, RangeSelection, LineInspector, RangeSelectionOverlay
 from enable.component_editor import ComponentEditor
@@ -12,6 +12,7 @@ from traitsui.wx.animated_gif_editor import AnimatedGIFEditor
 from pudb import set_trace
 from os.path import join, dirname
 
+from traitsui.menu import Menu, MenuBar
 
 class TC_Handler(Handler):
 
@@ -38,6 +39,8 @@ class TC_Handler(Handler):
             if object.fid._flags['ft']:
                 info.ft_btn.label = 'FT*'
 
+    #def exit_action(self, info, object):
+    #    exit()
     #def object__updated_changed(self, info):
     #    if info.initialized:
     #        info.ui.title += "*"
@@ -181,6 +184,8 @@ class DataPlotter(traits.HasTraits):
     plot_decon_btn = traits.Button(label='Show Lineshapes') 
     lorgau = traits.Range(0.0,1.0, value=0, label='Lorentzian = 0, Gaussian = 1')
     deconvolute_mp = traits.Bool(True, label='Parallelise')
+
+    plot_ints_btn = traits.Button(label='Plot integrals') 
     _peaks_now = []
     _ranges_now = []
 
@@ -725,8 +730,18 @@ class DataPlotter(traits.HasTraits):
         self.plot.request_redraw()
 
 
+    def _plot_ints_btn_fired(self):
+        if len(self.fid.integrals) == 0:
+            print 'self.integrals does not exist'
+            return
+        self.fid.plot_integrals()
+
     def default_traits_view(self):
-        traits_view = View(Group(
+        #exit_action = Action(name='Exit',
+        #                action='exit_action')
+
+        traits_view = View(
+                            Group(
                                 Group(
                                     Item('data_index',
                                           editor     = TabularEditor(
@@ -760,20 +775,26 @@ class DataPlotter(traits.HasTraits):
                                             orientation='vertical'), orientation='horizontal', show_border=True, label='Plotting'),
                                     Group(
                                         Group(
-                                            Item('lb', show_label=False, format_str='%.2f Hz'),
-                                            Item('lb_btn', show_label=False),
-                                            Item('lb_plt_btn', show_label=False),
-                                            orientation='horizontal'),
                                             Group(
-                                            Item('zf_btn', show_label=False),
-                                            Item('ft_btn', show_label=False),
+                                                Item('lb', show_label=False, format_str='%.2f Hz'),
+                                                Item('lb_btn', show_label=False),
+                                                Item('lb_plt_btn', show_label=False),
+                                                Item('zf_btn', show_label=False),
+                                                Item('ft_btn', show_label=False),
+                                                orientation='horizontal',
+                                                show_border=True,
+                                                label='Basic'),
+                                            Group(
+                                                Item('bl_cor_btn', show_label=False),
+                                                Item('bl_sel_btn', show_label=False),
+                                                orientation='horizontal',
+                                                show_border=True,
+                                                label='Baseline correction'),
                                             orientation='horizontal'),
-                                        Group(
-                                            Item('bl_cor_btn', show_label=False),
-                                            Item('bl_sel_btn', show_label=False),
-                                            orientation='horizontal',
-                                            show_border=True,
-                                            label='Baseline correction'),
+                                            #Group(
+                                            #Item('zf_btn', show_label=False),
+                                            #Item('ft_btn', show_label=False),
+                                            #orientation='horizontal'),
                                         Group(
                                             Group(
                                                 Item('ph_auto_btn', show_label=False),
@@ -796,24 +817,30 @@ class DataPlotter(traits.HasTraits):
                                             Item('lorgau', show_label=False, editor=RangeEditor(low_label='Lorentz', high_label='Gauss')),
                                             Item('deconvolute_mp', show_label=True),
                                             Item('plot_decon_btn', show_label=False),
+                                            Item('plot_ints_btn', show_label=False),
 
                                             orientation='horizontal',
                                             show_border=True,
                                             label='Peak-picking and deconvolution'),
                                             show_border=True, label='Processing'),
 
-                                        #Group(
-                                        #    Item( 'loading_animation', 
-                                        #        editor     = AnimatedGIFEditor(playing=str('busy_animation')),#( frame = 'frame_animation' ),
-                                        #        show_label = False),
-                                        #    #Item('progress_val',
-                                        #    #    show_label=False,
-                                        #    #    editor=ProgressEditor(
-                                        #    #        min=0,
-                                        #    #        max=100,
-                                        #    #        ),
-                                        #    #    )
-                                        #    ),
+#                                        Group(
+#                                            Group(
+#                                        #    Item( 'loading_animation', 
+#                                        #        editor     = AnimatedGIFEditor(playing=str('busy_animation')),#( frame = 'frame_animation' ),
+#                                        #        show_label = False),
+#                                        #    #Item('progress_val',
+#                                        #    #    show_label=False,
+#                                        #    #    editor=ProgressEditor(
+#                                        #    #        min=0,
+#                                        #    #        max=100,
+#                                        #    #        ),
+#                                        #    #    )
+#                                                Item('plot_ints_btn', show_label=False),
+#                                                show_border=True,
+#                                                orientation='horizontal'),
+#                                            show_border=True,
+#                                            orientation='horizontal'),
                                         show_border=True,
                                         orientation='horizontal'),
 
@@ -822,7 +849,13 @@ class DataPlotter(traits.HasTraits):
                             height=1.0,
                             resizable=True,
                             handler=TC_Handler(),
-                            title='NMRPy')
+                            title='NMRPy',
+                            #menubar=MenuBar(
+                            #            Menu(
+                            #                exit_action, 
+                            #                name='File')),
+                            
+)
         return traits_view
 
 
