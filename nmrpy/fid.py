@@ -232,6 +232,7 @@ class FID_array(object):
         if filename==None:
             filename=self.filename[:-4]
         np.save(filename,new_array)
+        print 'FID array saved as %s.npy'%(filename)
 
     def loadfids(self,filename=None):
         """Load FID array from binary file in NumPy '.npy' format."""

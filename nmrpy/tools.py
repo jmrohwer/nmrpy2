@@ -186,6 +186,7 @@ class DataPlotter(traits.HasTraits):
     deconvolute_mp = traits.Bool(True, label='Parallelise')
 
     plot_ints_btn = traits.Button(label='Plot integrals') 
+    save_fids_btn = traits.Button(label='Save FIDs') 
     _peaks_now = []
     _ranges_now = []
 
@@ -736,6 +737,9 @@ class DataPlotter(traits.HasTraits):
             return
         self.fid.plot_integrals()
 
+    def _save_fids_btn_fired(self):
+        self.fid.savefids()
+
     def default_traits_view(self):
         #exit_action = Action(name='Exit',
         #                action='exit_action')
@@ -790,7 +794,7 @@ class DataPlotter(traits.HasTraits):
                                                 orientation='horizontal',
                                                 show_border=True,
                                                 label='Baseline correction'),
-                                            orientation='horizontal'),
+                                                orientation='horizontal'),
                                             #Group(
                                             #Item('zf_btn', show_label=False),
                                             #Item('ft_btn', show_label=False),
@@ -807,6 +811,11 @@ class DataPlotter(traits.HasTraits):
                                                 Item('ph_global', show_label=True),
                                                 orientation='horizontal',
                                                 show_border=True),
+                                            Group(
+                                                Item('save_fids_btn', show_label=False),
+                                                show_border=True,
+                                                label='Save',
+                                                orientation='horizontal'),
                                             orientation='horizontal',
                                             show_border=True,
                                             label='Phase correction'),
@@ -823,7 +832,6 @@ class DataPlotter(traits.HasTraits):
                                             show_border=True,
                                             label='Peak-picking and deconvolution'),
                                             show_border=True, label='Processing'),
-
 #                                            Group(
 #                                        #    Item( 'loading_animation', 
 #                                        #        editor     = AnimatedGIFEditor(playing=str('busy_animation')),#( frame = 'frame_animation' ),
