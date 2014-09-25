@@ -35,7 +35,7 @@ class TC_Handler(Handler):
 
 
         if name == 'ft_btn':
-            if object.fid._ft:
+            if object.fid._flags['ft']:
                 info.ft_btn.label = 'FT*'
 
     #def object__updated_changed(self, info):
@@ -347,7 +347,7 @@ class DataPlotter(traits.HasTraits):
         self.old_y_offsets = self.y_offsets
         self.x_offsets = self.index_array * x
         self.y_offsets = self.index_array * y
-        for i in np.arange(len(self.plot.plots)):
+        for i in np.arange(len([pt for pt in self.plot.plots if 'plot' in pt])):
             self.plot.plots['plot%i'%i][0].position = [self.x_offsets[i], self.y_offsets[i]]
         self.plot.request_redraw()
 
