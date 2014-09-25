@@ -824,7 +824,6 @@ class DataPlotter(traits.HasTraits):
                                             label='Peak-picking and deconvolution'),
                                             show_border=True, label='Processing'),
 
-#                                        Group(
 #                                            Group(
 #                                        #    Item( 'loading_animation', 
 #                                        #        editor     = AnimatedGIFEditor(playing=str('busy_animation')),#( frame = 'frame_animation' ),
@@ -839,8 +838,6 @@ class DataPlotter(traits.HasTraits):
 #                                                Item('plot_ints_btn', show_label=False),
 #                                                show_border=True,
 #                                                orientation='horizontal'),
-#                                            show_border=True,
-#                                            orientation='horizontal'),
                                         show_border=True,
                                         orientation='horizontal'),
 
