@@ -61,6 +61,7 @@ def fid_from_pnr(path=None):
     fid.peaks = fid_dict['peaks']
     fid.ranges = fid_dict['ranges']
     fid.integrals = fid_dict['integrals']
+    fid.fits = fid_dict['fits']
 
     return fid
 
@@ -245,8 +246,8 @@ class FID_array(object):
 
 
     def savefid_dict(self, filename=None):
-        d = dict(zip(['flags', 'procpar', 'data', 'peaks', 'ranges', 'integrals'], 
-                    [self._flags, self.procpar, self.data, self.peaks, self.ranges, self.integrals])) 
+        d = dict(zip(['flags', 'procpar', 'data', 'peaks', 'ranges', 'integrals', 'fits'], 
+                    [self._flags, self.procpar, self.data, self.peaks, self.ranges, self.integrals, self.fits])) 
         if not filename:
             filename=self.filename[:-4]+'.pnr'
         pickle.dump(d, open(filename, 'wb'))
