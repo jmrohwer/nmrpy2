@@ -187,6 +187,7 @@ class DataPlotter(traits.HasTraits):
 
     plot_ints_btn = traits.Button(label='Plot integrals') 
     save_fids_btn = traits.Button(label='Save FIDs') 
+
     _peaks_now = []
     _ranges_now = []
 
@@ -738,7 +739,7 @@ class DataPlotter(traits.HasTraits):
         self.fid.plot_integrals()
 
     def _save_fids_btn_fired(self):
-        self.fid.savefids()
+        self.fid.savefid_dict()
 
     def default_traits_view(self):
         #exit_action = Action(name='Exit',

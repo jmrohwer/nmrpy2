@@ -22,6 +22,7 @@ except:
     #print 'module pywt is not installed, wavelet smoothing capabilities are disabled'
     pass
 
+import pickle
 
 #configure fonts
 rc('text.latex', preamble = \
@@ -46,6 +47,24 @@ def fid_from_path(path='.', varian=False, bruker=False):
         return fid
 
 
+def fid_from_pnr(path=None):
+    if not path:
+        print 'Path not specified.'
+        return
+    fid_dict = pickle.load(open(path, 'rb'))
+    fid = FID_array(data=fid_dict['data'], 
+                    procpar=fid_dict['procpar'], 
+                    path='fid1.fid', 
+                    varian=fid_dict['flags']['varian'], 
+                    bruker=fid_dict['flags']['bruker'])
+    fid._flags = fid_dict['flags']
+    fid.peaks = fid_dict['peaks']
+    fid.ranges = fid_dict['ranges']
+    fid.integrals = fid_dict['integrals']
+
+    return fid
+
+
 class FID_array(object):
     def __init__(self, data=None, procpar=None, path=None, varian=False, bruker=False):
         """Instantiate the FID class."""
@@ -68,7 +87,9 @@ class FID_array(object):
         self.integrals = []
         self._flags = {
             "ft"    : False,
-            "gl"    : 0
+            "gl"    : 0,
+            "varian": varian,
+            "bruker": bruker,
         }
 
     @property
@@ -223,8 +244,17 @@ class FID_array(object):
             self.data = np.append(data[:,int(s/2.0)::-1], data[:,s:int(s/2.0):-1], axis=1)
 
 
+    def savefid_dict(self, filename=None):
+        d = dict(zip(['flags', 'procpar', 'data', 'peaks', 'ranges', 'integrals'], 
+                    [self._flags, self.procpar, self.data, self.peaks, self.ranges, self.integrals])) 
+        if not filename:
+            filename=self.filename[:-4]+'.pnr'
+        pickle.dump(d, open(filename, 'wb'))
+        print 'FID array saved as %s'%(filename)
+
+
     def savefids(self,filename=None):
-        """Save FID array to a binary file in NumPy '.npy' format."""
+        """Save FID array to a file in NumPy '.npy' format."""
         if len(self.data.shape) == 2:
             s0,s1 = self.data.shape
             data = self.data.real
@@ -235,7 +265,7 @@ class FID_array(object):
         print 'FID array saved as %s.npy'%(filename)
 
     def loadfids(self,filename=None):
-        """Load FID array from binary file in NumPy '.npy' format."""
+        """Load FID array from file in NumPy '.npy' format."""
         if filename==None:
             filename=self.filename[:-3]+'npy'
         new_array = np.load(filename)
