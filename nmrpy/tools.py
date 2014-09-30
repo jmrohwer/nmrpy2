@@ -271,6 +271,22 @@ class DataPlotter(traits.HasTraits):
         self.plot._ps = self.fid.ps
         self.plot._data_complex = self.fid.data
 
+    def text_marker(self, text, colour='black'):
+        xl,xh,y = self.plot.range2d.x_range.low, self.plot.range2d.x_range.high, self.plot.range2d.y_range.high
+        x = xl+0.1*(xh-xl)
+        y = 0.8*y
+        
+        dl = DataLabel(self.plot.plots['plot0'][0], 
+                            data_point=(x, y),
+                            label_position="top", 
+                            label_text=text,
+                            show_label_coords=False,
+                            marker_visible=False,
+                            border_visible=True,
+                            arrow_visible=False)
+        self.plot.plots['plot0'][0].overlays.append(dl)
+        self.plot.request_redraw()
+
     def plot_marker(self, ppm, colour='red'):
         dl = DataLabel(self.plot.plots['plot0'][0], 
                             data_point=(ppm,0.0),
@@ -438,12 +454,20 @@ class DataPlotter(traits.HasTraits):
     def _ph_auto_btn_fired(self):
         if not self.fid._flags['ft']:
             return
+        for i in self.fid.data[np.iscomplex(self.fid.data) == False]: #as np.iscomplex returns False for 0+0j, we need to check manually
+            if type(i) != np.complex128:
+                print "Cannot perform phase correction on non-imaginary data."
+                return
         self.fid.phase_auto(mp=self.ph_mp, discard_imaginary=False)
         self.update_plot_data_from_fid()
 
     def _ph_auto_single_btn_fired(self):
         if not self.fid._flags['ft']:
             return
+        for i in self.fid.data[np.iscomplex(self.fid.data) == False]: #as np.iscomplex returns False for 0+0j, we need to check manually
+            if type(i) != np.complex128:
+                print "Cannot perform phase correction on non-imaginary data."
+                return
         for i in self.data_selected:
             self.fid._phase_area_single(i)
         self.update_plot_data_from_fid()
@@ -457,6 +481,7 @@ class DataPlotter(traits.HasTraits):
                 return
         if not self._flags['manphasing']:
             self._flags['manphasing'] = True
+            self.text_marker('Drag to phase:\n up/down - p0\n left/right - p1')
             self.change_plot_colour(colour='red')
             self.disable_plot_tools()
             self.plot._data_selected = self.data_selected
@@ -467,6 +492,7 @@ class DataPlotter(traits.HasTraits):
 
     def end_man_phasing(self):
         self._flags['manphasing'] = False
+        self.remove_all_overlays()
         self.change_plot_colour(colour='black')
         if self.ph_global:
             self.fid.data = self.fid.ps(self.fid.data, p0=self.plot.tools[0].p0, p1=self.plot.tools[0].p1)
@@ -480,6 +506,12 @@ class DataPlotter(traits.HasTraits):
 
     def remove_extra_overlays(self):
         self.plot.overlays = [self.plot.overlays[0]]
+        self.plot.plots['plot0'][0].overlays = []
+
+
+    def remove_all_overlays(self):
+        self.plot.overlays = []
+        self.plot.plots['plot0'][0].overlays = []
 
     def disable_plot_tools(self):
         self.plot.tools = []
@@ -510,6 +542,8 @@ class DataPlotter(traits.HasTraits):
                             selection_color='red', 
                             color='black')[0]
             #self.change_plot_colour(colour='red')
+
+            self.text_marker('Select ranges for baseline correction:\n drag right - select range')
             self.disable_plot_tools()
             self.plot.tools.append(BlSelectTool(self.plot.plots['plot0'][0],
                                             left_button_selects=True,
@@ -545,6 +579,7 @@ class DataPlotter(traits.HasTraits):
         if self._flags['bl_selecting']:
             self.end_bl_select()
         self.fid.bl_fit() 
+        self.remove_all_overlays()
         self.update_plot_data_from_fid() 
 
     def _peak_pick_btn_fired(self):
@@ -560,6 +595,7 @@ class DataPlotter(traits.HasTraits):
         self.reset_plot()
         if self._peak_marker_overlays:
             self.plot.plots['plot0'][0].overlays = self._peak_marker_overlays.values()
+        self.text_marker('Peak-picking:\n left click - select peak\n drag right - select range')
         self.disable_plot_tools()
 
         #set_trace()
@@ -600,8 +636,7 @@ class DataPlotter(traits.HasTraits):
         else:
             self.clear_all_peaks_ranges()
          
-        self.plot.overlays = []
-        self.plot.plots['plot0'][0].overlays = []
+        self.remove_all_overlays()
         self.disable_plot_tools()
         self.enable_plot_tools()
         self.plot.request_redraw()
