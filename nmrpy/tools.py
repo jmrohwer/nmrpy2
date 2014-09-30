@@ -451,6 +451,10 @@ class DataPlotter(traits.HasTraits):
     def _ph_man_btn_fired(self):
         if not self.fid._flags['ft']:
             return
+        for i in self.fid.data[np.iscomplex(self.fid.data) == False]: #as np.iscomplex returns False for 0+0j, we need to check manually
+            if type(i) != np.complex128:
+                print "Cannot perform phase correction on non-imaginary data."
+                return
         if not self._flags['manphasing']:
             self._flags['manphasing'] = True
             self.change_plot_colour(colour='red')
