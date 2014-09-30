@@ -691,13 +691,17 @@ class DataPlotter(traits.HasTraits):
 
     def _deconvolute_btn_fired(self):
         #set_trace()
-        self.busy()
+        #self.busy()
         if self._flags['picking']:
             self.end_picking()
+        if self.fid.peaks == []:
+            print 'No peaks selected.'
+            return
         print 'Imaginary components discarded.'
         self.fid.real()
         self.fid.deconv(gl=self.fid._flags['gl'], mp=self.deconvolute_mp)
-        self.busy()
+        #self.busy()
+        self._plot_decon_btn_fired()
 
     def clear_lineshapes(self):
         for line in [i for i in self.plot.plots if 'lineshape' in i]:
