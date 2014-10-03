@@ -85,6 +85,7 @@ class FID_array(object):
         self.peaks = []
         self.ranges = []
         self.fits = []
+        self.bl_points = []
         self.integrals = []
         self._flags = {
             "ft"    : False,
@@ -190,8 +191,8 @@ class FID_array(object):
         self.t = np.array([acqtime]*len(self.data))
 
     def ui(self):
-        self.fidplot = DataPlotter(self)
-        self.fidplot.configure_traits()
+        fidplot = DataPlotter(self)
+        fidplot.configure_traits()
 
     def zf_2(self):
         """Apply a single degree of zero-filling.
@@ -775,6 +776,10 @@ class FID_array(object):
         Keyword arguments:
         deg -- degree of fitted polynomial
         """
+        if len(self.bl_points) == 0:
+            print 'No points selected for baseline correction.'
+            return 
+
         data = self.data.real
         if len(self.data.shape) == 2:
             x = np.arange(len(data[0]),dtype='f')

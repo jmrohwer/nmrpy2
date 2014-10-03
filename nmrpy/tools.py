@@ -572,7 +572,6 @@ class DataPlotter(traits.HasTraits):
             self.plot.plots[plot][0].color = colour
 
     def _bl_sel_btn_fired(self):
-        print self._flags['bl_selecting']
         if not self.fid._flags['ft']:
             return
         if self._flags['bl_selecting']:
@@ -622,17 +621,14 @@ class DataPlotter(traits.HasTraits):
             self.bl_tool.on_trait_change(self._bl_handler, name=['ranges_now'])
 
     def end_bl_select(self):
-        print 'ending bl'
         self._flags['bl_selecting'] = False
         self._bl_indices = []
         for i, j   in self._bl_ranges:
-            print i, j
             self._bl_indices.append((i < self.x) * (self.x < j))
         self.fid.bl_points = np.where(sum(self._bl_indices, 0)==1)[0]
         #self.plot.delplot('bl_plot')
         for i in [j for j in self.plot.plots if 'bl_' in j]:
             self.plot.delplot(i)
-        print self.plot.plots
         self.plot.request_redraw()
         self.remove_extra_overlays()
         self.disable_plot_tools()
@@ -652,7 +648,7 @@ class DataPlotter(traits.HasTraits):
             return
         if self._flags['picking']:
             self.end_picking()
-            print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
+            #print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
             return
         else:
             self._flags['picking'] = True
@@ -690,7 +686,7 @@ class DataPlotter(traits.HasTraits):
         # Set up the trait handler for peak/range selections
         self.picking_tool = self.plot.tools[0]
         self.picking_tool.on_trait_change(self._peak_handler, name=['peaks_now', 'ranges_now'])
-        print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
+        #print 'self.fid.peaks', self.fid.peaks, '\nself.picking_tool.peaks_now',self.picking_tool.peaks_now
 
 
     def end_picking(self):
