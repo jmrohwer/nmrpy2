@@ -111,11 +111,10 @@ class BlSelectTool(RangeSelection):
     #bl_selections = traits.List()
     ranges_now = traits.List()
 
-    def normal_left_down(self, event):
-        pass
+    #def normal_left_down(self, event):
+    #    pass
 
-    def selected_left_down(self, event):
-        pass
+    #def selected_left_down(self, event):
 
     #def selecting_right_up(self, event):
     #    self.bl_selections.append(self.selection)
@@ -180,6 +179,7 @@ class DataPlotter(traits.HasTraits):
     ph_global = traits.Bool(label='apply globally')
     _peak_marker_overlays = {}
     _bl_marker_overlays = {}
+    _bl_range_plots = {}
 
     #baseline correctoin
     bl_cor_btn = traits.Button(label='BL correct')
@@ -226,6 +226,18 @@ class DataPlotter(traits.HasTraits):
                 self._bl_ranges = picked_ranges
                 self.bl_marker(self._bl_ranges[-1][0], colour='blue')
                 self.bl_marker(self._bl_ranges[-1][1], colour='blue')
+                l_bl = len(self._bl_ranges)-1
+                bl_range_x = self._bl_ranges[l_bl]
+                y = 0.2*self.plot.range2d.y_range.high
+                bl_range_y = [y,y] 
+                self.plot_data.set_data('bl_range_x_%i'%(l_bl), bl_range_x)
+                self.plot_data.set_data('bl_range_y_%i'%(l_bl), bl_range_y)
+                self._bl_range_plots['bl_range_x_%i'%(l_bl)] = self.plot.plot(('bl_range_x_%i'%(l_bl), 
+                                'bl_range_y_%i'%(l_bl)), 
+                                type='line', 
+                                name='bl_range_%i'%(l_bl), 
+                                line_width=0.5, 
+                                color='blue')[0]
 
     def _peak_handler(self):
        # set_trace() 
@@ -560,6 +572,7 @@ class DataPlotter(traits.HasTraits):
             self.plot.plots[plot][0].color = colour
 
     def _bl_sel_btn_fired(self):
+        print self._flags['bl_selecting']
         if not self.fid._flags['ft']:
             return
         if self._flags['bl_selecting']:
@@ -574,9 +587,8 @@ class DataPlotter(traits.HasTraits):
                             selection_line_width=0, 
                             marker_size=2, 
                             selection_marker_size=2, 
-                            selection_color='red', 
+                            selection_color='black', #change this to make selected points visible
                             color='black')[0]
-            #self.change_plot_colour(colour='red')
 
             self.text_marker('Select ranges for baseline correction:\n drag right - select range')
             self.disable_plot_tools()
@@ -595,18 +607,32 @@ class DataPlotter(traits.HasTraits):
 
             if self._bl_marker_overlays:
                 self.plot.plots['plot0'][0].overlays = self._bl_marker_overlays.values()
+            #for i in self._bl_range_plots: #for some reason, after re-adding these plot objects, deleting them doesn't actually delete the visual component in self.plot_components, thus they're being redrawn entirely below
+                #self.plot.add(self._bl_range_plots[i])
+            for l_bl in range(len(self._bl_ranges)):
+                self.plot.plot(('bl_range_x_%i'%(l_bl), 
+                               'bl_range_y_%i'%(l_bl)), 
+                               type='line', 
+                               name='bl_range_%i'%(l_bl), 
+                               line_width=0.5, 
+                               color='blue')[0]
+
+            self.plot.request_redraw()
             self.bl_tool = self.plot.tools[0]
             self.bl_tool.on_trait_change(self._bl_handler, name=['ranges_now'])
 
     def end_bl_select(self):
+        print 'ending bl'
         self._flags['bl_selecting'] = False
-        self._bl_ranges = self.plot.tools[0].ranges_now #bl_selections
         self._bl_indices = []
         for i, j   in self._bl_ranges:
             print i, j
             self._bl_indices.append((i < self.x) * (self.x < j))
         self.fid.bl_points = np.where(sum(self._bl_indices, 0)==1)[0]
-        self.plot.delplot('bl_plot')
+        #self.plot.delplot('bl_plot')
+        for i in [j for j in self.plot.plots if 'bl_' in j]:
+            self.plot.delplot(i)
+        print self.plot.plots
         self.plot.request_redraw()
         self.remove_extra_overlays()
         self.disable_plot_tools()
