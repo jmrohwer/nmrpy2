@@ -108,7 +108,8 @@ class PhaseDragTool(DragTool):
         event.handled = True
 
 class BlSelectTool(RangeSelection):
-    bl_selections = traits.List()
+    #bl_selections = traits.List()
+    ranges_now = traits.List()
 
     def normal_left_down(self, event):
         pass
@@ -116,8 +117,14 @@ class BlSelectTool(RangeSelection):
     def selected_left_down(self, event):
         pass
 
+    #def selecting_right_up(self, event):
+    #    self.bl_selections.append(self.selection)
+    #    self.event_state = 'selected'
+
     def selecting_right_up(self, event):
-        self.bl_selections.append(self.selection)
+        ranges = [i for i in self.ranges_now]
+        ranges.append(list(self.selection))
+        self.ranges_now = ranges
         self.event_state = 'selected'
 
 class PeakPicker(LineInspector):
@@ -172,6 +179,7 @@ class DataPlotter(traits.HasTraits):
     ph_man_btn = traits.Button(label='Manual')
     ph_global = traits.Bool(label='apply globally')
     _peak_marker_overlays = {}
+    _bl_marker_overlays = {}
 
     #baseline correctoin
     bl_cor_btn = traits.Button(label='BL correct')
@@ -190,6 +198,8 @@ class DataPlotter(traits.HasTraits):
 
     _peaks_now = []
     _ranges_now = []
+    _bl_ranges = []
+    _bl_indices = []
 
     _flags = {
         'manphasing'     : False, 
@@ -206,6 +216,16 @@ class DataPlotter(traits.HasTraits):
 
     #def _metadata_handler(self):                                                                                                
         #return #print self.metadata_source.metadata.get('selections')
+
+    def _bl_handler(self):
+       # set_trace() 
+        self._ranges_now = list(self.bl_tool.ranges_now)
+        if self.bl_tool.ranges_now:
+            picked_ranges = [self.correct_padding(r) for r in self.bl_tool.ranges_now]
+            if self._bl_ranges is not picked_ranges:
+                self._bl_ranges = picked_ranges
+                self.bl_marker(self._bl_ranges[-1][0], colour='blue')
+                self.bl_marker(self._bl_ranges[-1][1], colour='blue')
 
     def _peak_handler(self):
        # set_trace() 
@@ -315,6 +335,21 @@ class DataPlotter(traits.HasTraits):
                             arrow_visible=True)
         self.plot.plots['plot0'][0].overlays.append(dl)
         self._peak_marker_overlays[ppm] = dl
+        self.plot.request_redraw()
+
+    def bl_marker(self, ppm, colour='blue'):
+        dl = DataLabel(self.plot.plots['plot0'][0], 
+                            data_point=(ppm,0.0),
+                            arrow_color=colour,
+                            arrow_size=10,
+                            label_position="top", 
+                            label_format='%(x).3f',
+                            padding_bottom=int(self.plot.height*0.25),
+                            marker_visible=False,
+                            border_visible=False,
+                            arrow_visible=True)
+        self.plot.plots['plot0'][0].overlays.append(dl)
+        self._bl_marker_overlays[ppm] = dl
         self.plot.request_redraw()
 
     def _x_range_btn_fired(self):
@@ -534,7 +569,7 @@ class DataPlotter(traits.HasTraits):
             self.plot.plot(('x', 'series%i'%(self.data_selected[0]+1)), 
                             name='bl_plot', 
                             type='scatter', 
-                            alpha=0.5,
+                            alpha=1.0,
                             line_width=0, 
                             selection_line_width=0, 
                             marker_size=2, 
@@ -546,7 +581,6 @@ class DataPlotter(traits.HasTraits):
             self.text_marker('Select ranges for baseline correction:\n drag right - select range')
             self.disable_plot_tools()
             self.plot.tools.append(BlSelectTool(self.plot.plots['plot0'][0],
-                                            left_button_selects=True,
                                             metadata_name='selections',
                                             append_key=KeySpec(None, 'control')))
             self.plot.overlays.append(RangeSelectionOverlay(component=self.plot.plots['bl_plot'][0],
@@ -559,9 +593,14 @@ class DataPlotter(traits.HasTraits):
                                                  write_metadata=True,
                                                  color="blue"))
 
+            if self._bl_marker_overlays:
+                self.plot.plots['plot0'][0].overlays = self._bl_marker_overlays.values()
+            self.bl_tool = self.plot.tools[0]
+            self.bl_tool.on_trait_change(self._bl_handler, name=['ranges_now'])
+
     def end_bl_select(self):
         self._flags['bl_selecting'] = False
-        self._bl_ranges = self.plot.tools[0].bl_selections
+        self._bl_ranges = self.plot.tools[0].ranges_now #bl_selections
         self._bl_indices = []
         for i, j   in self._bl_ranges:
             print i, j
