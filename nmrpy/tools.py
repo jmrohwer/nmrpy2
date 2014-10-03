@@ -198,6 +198,7 @@ class DataPlotter(traits.HasTraits):
 
     _peaks_now = []
     _ranges_now = []
+    _bl_ranges_now = []
     _bl_ranges = []
     _bl_indices = []
 
@@ -219,7 +220,7 @@ class DataPlotter(traits.HasTraits):
 
     def _bl_handler(self):
        # set_trace() 
-        self._ranges_now = list(self.bl_tool.ranges_now)
+        self._bl_ranges_now = list(self.bl_tool.ranges_now)
         if self.bl_tool.ranges_now:
             picked_ranges = [self.correct_padding(r) for r in self.bl_tool.ranges_now]
             if self._bl_ranges is not picked_ranges:
