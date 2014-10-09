@@ -680,19 +680,19 @@ class FID_array(object):
     """
     def _phase_area_mp(self, ):
         print 'fid\tp0\tp1'
-        proc_pool = Pool()
+        proc_pool = Pool(cpu_count()-1)
         self.data = np.array(proc_pool.map(_unwrap_fid_area, zip([self]*len(self.data), range(len(self.data)))))
 
     def _phase_neg_mp(self, thresh=0.0, ):
         print 'fid\tp0\tp1'
         self._thresh = thresh
-        proc_pool = Pool()
+        proc_pool = Pool(cpu_count()-1)
         self.data = np.array(proc_pool.map(_unwrap_fid_neg, zip([self]*len(self.data), range(len(self.data)))))
 
     def _phase_neg_area_mp(self, thresh=0.0, ):
         print 'fid\tp0\tp1'
         self._thresh = thresh
-        proc_pool = Pool()
+        proc_pool = Pool(cpu_count()-1)
         self.data = np.array(proc_pool.map(_unwrap_fid_neg_area, zip([self]*len(self.data), range(len(self.data)))))
 
 
@@ -871,7 +871,7 @@ class FID_array(object):
 
     def _deconv_mp(self, gl=None):
         self._flags['gl'] = gl
-        proc_pool = Pool()
+        proc_pool = Pool(cpu_count()-1)
         data_zip = zip([self]*len(self.data), range(len(self.data)))
         fits = proc_pool.map(_unwrap_fid_deconv, data_zip)
         self.fits = np.array(fits)

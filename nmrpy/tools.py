@@ -542,6 +542,7 @@ class DataPlotter(traits.HasTraits):
         self._flags['manphasing'] = False
         self.remove_all_overlays()
         self.change_plot_colour(colour='black')
+        print 'p0: %f, p1: %f'%(self.plot.tools[0].p0, self.plot.tools[0].p1)
         if self.ph_global:
             self.fid.data = self.fid.ps(self.fid.data, p0=self.plot.tools[0].p0, p1=self.plot.tools[0].p1)
             self.update_plot_data_from_fid()
