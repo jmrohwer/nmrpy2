@@ -195,6 +195,7 @@ class DataPlotter(traits.HasTraits):
 
     plot_ints_btn = traits.Button(label='Plot integrals') 
     save_fids_btn = traits.Button(label='Save FIDs') 
+    save_ints_btn = traits.Button(label='Generate csv') 
 
     _peaks_now = []
     _ranges_now = []
@@ -847,6 +848,9 @@ class DataPlotter(traits.HasTraits):
     def _save_fids_btn_fired(self):
         self.fid.savefid_dict()
 
+    def _save_ints_btn_fired(self):
+        self.fid.save_integrals_csv()
+
     def default_traits_view(self):
         #exit_action = Action(name='Exit',
         #                action='exit_action')
@@ -925,20 +929,26 @@ class DataPlotter(traits.HasTraits):
                                                 orientation='horizontal'),
                                             orientation='horizontal',
                                             show_border=True,
-                                            label='Phase correction'),
+                                            label='Phase correction')),
                                         Group(
-                                            Item('peak_pick_btn', show_label=False),
-                                            Item('peak_pick_clear', show_label=False),
-                                            Item('deconvolute_btn', show_label=False),
-                                            Item('lorgau', show_label=False, editor=RangeEditor(low_label='Lorentz', high_label='Gauss')),
-                                            Item('deconvolute_mp', show_label=True),
-                                            Item('plot_decon_btn', show_label=False),
-                                            Item('plot_ints_btn', show_label=False),
+                                            Group(
+                                                Item('peak_pick_btn', show_label=False),
+                                                Item('peak_pick_clear', show_label=False),
+                                                Item('deconvolute_btn', show_label=False),
+                                                Item('lorgau', show_label=False, editor=RangeEditor(low_label='Lorentz', high_label='Gauss')),
+                                                Item('deconvolute_mp', show_label=True),
+                                                orientation='horizontal',
+                                                show_border=False),
+                                            Group(
+                                                Item('plot_decon_btn', show_label=False),
+                                                Item('plot_ints_btn', show_label=False),
+                                                Item('save_ints_btn', show_label=False),
+                                                orientation='horizontal',
+                                                show_border=False),
 
-                                            orientation='horizontal',
+                                            orientation='vertical',
                                             show_border=True,
                                             label='Peak-picking and deconvolution'),
-                                            show_border=True, label='Processing'),
 #                                            Group(
 #                                        #    Item( 'loading_animation', 
 #                                        #        editor     = AnimatedGIFEditor(playing=str('busy_animation')),#( frame = 'frame_animation' ),

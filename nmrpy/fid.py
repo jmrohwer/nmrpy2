@@ -1146,6 +1146,19 @@ class FID_array(object):
             d.append(sp.polyval(p, x))
         self.polys = np.array(d)
 
+    def save_integrals_csv(self):
+        if len(self.integrals) == 0:
+            print 'No integral data to save.'
+            return
+        f = open('integrals.csv', 'wb')
+        f.write('#INTEGRALS\n')
+        f.write('#PPM: '+(','.join([str(i) for i in self.peaks])+'\n'))
+        f.close()
+        f = open('integrals.csv', 'ab')
+        for t in self.integrals:
+            f.write(','.join([str(i) for i in t])+'\n')
+        f.close()
+        
 
     def f_save(self,concs,rate,names,filename=None):
         """Save spline-approximated concentration/rate data as text file.
