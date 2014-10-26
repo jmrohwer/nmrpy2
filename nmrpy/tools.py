@@ -195,7 +195,7 @@ class DataPlotter(traits.HasTraits):
 
     plot_ints_btn = traits.Button(label='Plot integrals') 
     save_fids_btn = traits.Button(label='Save FIDs') 
-    save_ints_btn = traits.Button(label='Generate csv') 
+    save_ints_btn = traits.Button(label='Integrals -> csv') 
 
     _peaks_now = []
     _ranges_now = []
@@ -922,14 +922,10 @@ class DataPlotter(traits.HasTraits):
                                                 Item('ph_global', show_label=True),
                                                 orientation='horizontal',
                                                 show_border=True),
-                                            Group(
-                                                Item('save_fids_btn', show_label=False),
-                                                show_border=True,
-                                                label='Save',
-                                                orientation='horizontal'),
                                             orientation='horizontal',
                                             show_border=True,
                                             label='Phase correction')),
+                                        Group(
                                         Group(
                                             Group(
                                                 Item('peak_pick_btn', show_label=False),
@@ -942,13 +938,18 @@ class DataPlotter(traits.HasTraits):
                                             Group(
                                                 Item('plot_decon_btn', show_label=False),
                                                 Item('plot_ints_btn', show_label=False),
-                                                Item('save_ints_btn', show_label=False),
                                                 orientation='horizontal',
                                                 show_border=False),
-
                                             orientation='vertical',
                                             show_border=True,
                                             label='Peak-picking and deconvolution'),
+                                            Group(
+                                                Item('save_fids_btn', show_label=False),
+                                                Item('save_ints_btn', show_label=False),
+                                                show_border=True,
+                                                label='Save',
+                                                orientation='horizontal'),
+                                            orientation='vertical'),
 #                                            Group(
 #                                        #    Item( 'loading_animation', 
 #                                        #        editor     = AnimatedGIFEditor(playing=str('busy_animation')),#( frame = 'frame_animation' ),
