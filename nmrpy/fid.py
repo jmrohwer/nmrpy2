@@ -994,6 +994,10 @@ class FID_array(object):
         plt.show()
 
     def plot_integrals(self, index='all'):
+        if len(self.integrals) == 0:
+            print 'No integral data to plot.'
+            return
+        self.normalise_integrals()
         self.integral_dict = dict(zip(['%0.3f'%i for i in self.peaks], self.integrals.transpose()))
         x = self.t[:len(self.integrals.transpose()[0])]
         self.plot_dict(x, self.integral_dict, index=index, title='peak integrals', xlabel='time')
@@ -1150,6 +1154,7 @@ class FID_array(object):
         if len(self.integrals) == 0:
             print 'No integral data to save.'
             return
+        self.normalise_integrals()
         f = open('integrals.csv', 'wb')
         f.write('#INTEGRALS\n')
         f.write('#PPM: '+(','.join([str(i) for i in self.peaks])+'\n'))
@@ -1158,7 +1163,9 @@ class FID_array(object):
         for t in self.integrals:
             f.write(','.join([str(i) for i in t])+'\n')
         f.close()
-        
+       
+    def normalise_integrals(self):
+        self.integrals /= self.integrals.max()
 
     def f_save(self,concs,rate,names,filename=None):
         """Save spline-approximated concentration/rate data as text file.
