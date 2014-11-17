@@ -1006,29 +1006,22 @@ class FID_array(object):
 
 
 
-    def integrate(self,index=None,ranges=None):
+    def integrate(self,ranges=None):
         """
-        Perform a simple 'box integration' over a specified index using the ranges stored in self.ranges.
+        Perform a simple 'box integration' over a specified range or using the ranges stored in self.ranges.
 
         Keyword arguments:
-        index -- indices of spectra to integrate, can be a single value or a list: [low,high]
+        ranges-- list of lists of range intervals over which to integrate (e.g. [[2,-1], [-4, -8]] )
 
         Returns an array of integrals by spectrum.
         """
         if ranges is None:
-            if len(self.data.shape) == 2 and index is None:
-                return np.array([[sum(j[i[0]:i[1]]) for i in self.ranges] for j in self.data])
-            if len(self.data.shape) == 2 and index is not None:
-                if isinstance(index,int):               return np.array([sum(self.data[index][i[0]:i[1]]) for i in self.ranges])
-                if isinstance(index,list):      return np.array([[sum(self.data[j][i[0]:i[1]]) for i in self.ranges] for j in range(index[0],index[1])])
-
+            self._convert_peaklist_to_index()
+            ranges = self.ranges
+            self._convert_peaklist_to_ppm()
         if ranges is not None:
-            if len(self.data.shape) == 2 and index is None:
-                return np.array([[sum(j[i[0]:i[1]]) for i in [ranges]] for j in self.data])
-            if len(self.data.shape) == 2 and index is not None:
-                if isinstance(index,int):               return np.array([sum(self.data[index][i[0]:i[1]]) for i in [ranges]])
-                if isinstance(index,list):      return np.array([[sum(self.data[j][i[0]:i[1]]) for i in [ranges]] for j in range(index[0],index[1])])
-
+            ranges = [self.conv_to_index(self.data[0], r, self.params['sw_left'], self.params['sw']) for r in ranges]
+        return np.array([[sum(j[::-1][i[0]:i[1]]) for i in ranges] for j in self.data])
 
 
 
