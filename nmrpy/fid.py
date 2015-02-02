@@ -682,18 +682,24 @@ class FID_array(object):
         print 'fid\tp0\tp1'
         proc_pool = Pool(cpu_count()-1)
         self.data = np.array(proc_pool.map(_unwrap_fid_area, zip([self]*len(self.data), range(len(self.data)))))
+        proc_pool.close()
+        proc_pool.join()
 
     def _phase_neg_mp(self, thresh=0.0, ):
         print 'fid\tp0\tp1'
         self._thresh = thresh
         proc_pool = Pool(cpu_count()-1)
         self.data = np.array(proc_pool.map(_unwrap_fid_neg, zip([self]*len(self.data), range(len(self.data)))))
+        proc_pool.close()
+        proc_pool.join()
 
     def _phase_neg_area_mp(self, thresh=0.0, ):
         print 'fid\tp0\tp1'
         self._thresh = thresh
         proc_pool = Pool(cpu_count()-1)
         self.data = np.array(proc_pool.map(_unwrap_fid_neg_area, zip([self]*len(self.data), range(len(self.data)))))
+        proc_pool.close()
+        proc_pool.join()
 
 
     def _phase_area(self):
@@ -876,6 +882,8 @@ class FID_array(object):
         fits = proc_pool.map(_unwrap_fid_deconv, data_zip)
         self.fits = np.array(fits)
         self.integrals = f_integrals_array(self.data,self.fits)
+        proc_pool.close()
+        proc_pool.join()
         #self.integrals = np.array([list(i) for i in self.integrals])
         #return f
 
