@@ -331,7 +331,7 @@ class FID_array(object):
             return
 
         if sw_left is None:
-            sw_left = self.params['sw']
+            sw_left = self.params['sw_left']
 
         if plotrange is None:
             if sw_left is not None:
