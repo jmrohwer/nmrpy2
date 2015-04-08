@@ -227,10 +227,11 @@ class FID_array(object):
         """
         self.data = np.exp(-np.pi*np.arange(len(self.data[0]))*(lb/self.params['sw_hz']))*self.data
 
-    def ft(self):
+    def ft(self,zero_index_correction=False):
         """Fourier Transform the FID array.
 
         Note: calculates the Discrete Fourier Transform using the Fast Fourier Transform algorithm as implemented in NumPy [1].
+        zero_index_correction:  If True, correct for an artefactual peak that often appears at index 0.
 
         [1] Cooley, James W., and John W. Tukey, 1965, 'An algorithm for the machine calculation of complex Fourier series,' Math. Comput. 19: 297-301.
 
@@ -241,7 +242,8 @@ class FID_array(object):
         data =  np.array(np.fft.fft(self.data),dtype=self.data.dtype)
         s = data.shape[-1]
         if self._varian:
-            self.data = np.append(data[:,int(s/2.0)::-1], data[:,s:int(s/2.0):-1], axis=1)[:,::-1]
+            #self.data = np.append(data[:,int(s/2.0)::-1], data[:,s:int(s/2.0):-1], axis=1)[:,::-1]
+            self.data = np.append(data[:,int(s/2.0):],data[:,:int(s/2.0)],axis=1)
         if self._bruker:
             self.data = np.append(data[:,int(s/2.0)::-1], data[:,s:int(s/2.0):-1], axis=1)
 
