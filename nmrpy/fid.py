@@ -227,11 +227,18 @@ class FID_array(object):
         """
         self.data = np.exp(-np.pi*np.arange(len(self.data[0]))*(lb/self.params['sw_hz']))*self.data
 
-    def ft(self,zero_index_correction=False):
+    def zero_index_correction(self):
+        """Correct artefactual spike at index 0 produced by the NumPy fft algorithm.
+        """
+        data = np.fft.fft(self.data)
+        data[:,0] *= 0j
+        self.data = np.fft.ifft(data)
+        
+
+    def ft(self):
         """Fourier Transform the FID array.
 
         Note: calculates the Discrete Fourier Transform using the Fast Fourier Transform algorithm as implemented in NumPy [1].
-        zero_index_correction:  If True, correct for an artefactual peak that often appears at index 0.
 
         [1] Cooley, James W., and John W. Tukey, 1965, 'An algorithm for the machine calculation of complex Fourier series,' Math. Comput. 19: 297-301.
 
