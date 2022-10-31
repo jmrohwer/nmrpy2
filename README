@@ -3,17 +3,9 @@ NMRPy v1.0
 
 A suite of processing utilities for arrayed NMR spectra.
 
-NMRPy has several dependencies:
-
--numpy
--scipy
--matplotlib
--nmrglue
-
+NMRPy has several dependencies which are listed in the requirements.txt file and can be installed using "pip install -r requirements.txt".
 
 run 'python setup.py install' to install NMRPy.
-
-
 
 
 Copyright (c) 2012, Johann Eicher

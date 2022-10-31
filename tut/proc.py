@@ -1,7 +1,11 @@
 import nmrpy
 
 
-p = nmrpy.fid_from_path('data.fid')
+p = nmrpy.fid_from_path('data.fid', varian=True)
+
+p.ui()
+
+'''
 p.emhz(lb=5)
 p.zf()
 p.ft()
@@ -54,7 +58,7 @@ p.f_integral_sums(names, peak_index)
 p.integrals_sum *= 5.0/p.integrals_sum[0]
 p.f_splines(k=2, s=1e20)
 p.f_plot_splines()
-
+'''
 
 
 
